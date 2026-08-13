@@ -92,6 +92,7 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 .touch-indicator.active{display:block}
 
 @media(max-width:760px){
+  canvas{aspect-ratio:3/2;}
   header h1{font-size:29px}
   .game-wrap{grid-template-columns:1fr}
   .side{order:2}
@@ -148,14 +149,14 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
 </section>
 </main>
-<footer>Made for a school project ✨ · v2.0 MOBILE SCALE</footer>
+<footer>Made for a school project ✨ · v2.2 SPACE BALANCE</footer>
 
 <script>
 const canvas=document.getElementById("gameCanvas");
 const IS_MOBILE = matchMedia("(max-width: 760px)").matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 if(IS_MOBILE){
   canvas.width=540;
-  canvas.height=405;
+  canvas.height=360;
 }
 const ctx=canvas.getContext("2d",{alpha:false,desynchronized:true});
 const W=canvas.width,H=canvas.height;
@@ -170,7 +171,7 @@ const overlayBtn=document.getElementById("overlayBtn");
 
 const keys={};
 let running=false,finished=false,score=0,lives=3,level=1,stars=[],lasers=[],lastVolley=0,startTime=0,finishTime=0,invincibleUntil=0,timerStarted=false;
-const player={x:W/2,y:H/2,r:IS_MOBILE?20:16,speed:IS_MOBILE?308:390};
+const player={x:W/2,y:H/2,r:IS_MOBILE?15:16,speed:IS_MOBILE?308:390};
 
 const touchIndicator=document.getElementById("touchIndicator");
 let joyX=0,joyY=0,joystickActive=false,activePointerId=null;
@@ -237,8 +238,8 @@ function resetGame(){
   invincibleUntil=0;
   timerEl.textContent="0.00초";
   spawnStar();updateUI();messageEl.textContent="⭐ 캐릭터를 움직이는 순간부터 시간이 시작됩니다!";document.getElementById("game").scrollIntoView({behavior:"smooth"})}
-function circleHit(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r}
-function rectCircleHit(rect,c){const cx=Math.max(rect.x-rect.w/2,Math.min(c.x,rect.x+rect.w/2)),cy=Math.max(rect.y-rect.h/2,Math.min(c.y,rect.y+rect.h/2)),dx=c.x-cx,dy=c.y-cy;return dx*dx+dy*dy<c.r*c.r}
+function circleHit(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<(a.r*0.88)+b.r}
+function rectCircleHit(rect,c){const cx=Math.max(rect.x-rect.w/2,Math.min(c.x,rect.x+rect.w/2)),cy=Math.max(rect.y-rect.h/2,Math.min(c.y,rect.y+rect.h/2)),dx=c.x-cx,dy=c.y-cy;const hitR=c.r*0.88;return dx*dx+dy*dy<hitR*hitR}
 function randomEdgePoint(){const edge=Math.floor(Math.random()*4);if(edge===0)return{x:random(0,W),y:-35};if(edge===1)return{x:W+35,y:random(0,H)};if(edge===2)return{x:random(0,W),y:H+35};return{x:-35,y:random(0,H)}}
 function spawnLaser(forceHoming=false){
   const start=randomEdgePoint();
@@ -257,8 +258,8 @@ function spawnLaser(forceHoming=false){
 
   lasers.push({
     x:start.x,y:start.y,vx,vy,
-    w:homing?(IS_MOBILE?62:48):(IS_MOBILE?54:42),
-    h:homing?(IS_MOBILE?12:10):(IS_MOBILE?10:8),
+    w:homing?(IS_MOBILE?46:48):(IS_MOBILE?40:42),
+    h:homing?(IS_MOBILE?9:10):(IS_MOBILE?7:8),
     angle:Math.atan2(vy,vx),
     homing,
     born:performance.now(),
@@ -377,7 +378,7 @@ function drawPlayerFace(){
 function draw(){
  ctx.clearRect(0,0,W,H);ctx.fillStyle="#070b16";ctx.fillRect(0,0,W,H);
  ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<(IS_MOBILE?10:45);i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
- if(stars.length)drawStar(stars[0].x,stars[0].y,IS_MOBILE?18:14);
+ if(stars.length)drawStar(stars[0].x,stars[0].y,IS_MOBILE?14:14);
  lasers.forEach(l=>{
    ctx.save();
    ctx.translate(l.x,l.y);
