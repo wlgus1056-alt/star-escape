@@ -81,29 +81,29 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
   position:absolute;
   left:0;
   top:0;
-  width:64px;
-  height:64px;
+  width:48px;
+  height:48px;
   border-radius:50%;
   background:rgba(255,255,255,.08);
-  border:1.5px solid rgba(255,255,255,.28);
+  border:1px solid rgba(255,255,255,.24);
   pointer-events:none;
   z-index:8;
   display:none;
   transform:translate3d(-9999px,-9999px,0);
   will-change:transform;
+  contain:layout paint;
 }
 .joystick.active{display:block}
 .stick{
   position:absolute;
   left:50%;
   top:50%;
-  width:28px;
-  height:28px;
-  margin-left:-14px;
-  margin-top:-14px;
+  width:20px;
+  height:20px;
+  margin-left:-10px;
+  margin-top:-10px;
   border-radius:50%;
-  background:rgba(255,255,255,.80);
-  border:1px solid rgba(255,255,255,.45);
+  background:rgba(255,255,255,.78);
   box-shadow:none;
   transform:translate3d(0,0,0);
   will-change:transform;
@@ -162,7 +162,7 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
 </section>
 </main>
-<footer>Made for a school project ✨ · v1.9 SMALL JOYSTICK SMOOTH</footer>
+<footer>Made for a school project ✨ · v1.8 JOYSTICK + SMOOTH</footer>
 
 <script>
 const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
@@ -405,8 +405,8 @@ function getCanvasLocal(clientX,clientY){
 }
 
 let joyBaseX=0,joyBaseY=0;
-const JOY_RADIUS=23;
-const JOY_HALF=32;
+const JOY_RADIUS=18;
+const JOY_HALF=24;
 
 function startSmallJoystick(clientX,clientY,pointerId){
   const p=getCanvasLocal(clientX,clientY);
