@@ -32,30 +32,33 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
   position:absolute;
   left:0;
   top:0;
-  width:76px;
-  height:76px;
+  width:48px;
+  height:48px;
   border-radius:50%;
-  background:rgba(255,255,255,.10);
-  border:1.5px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.24);
   touch-action:none;
   display:none;
   pointer-events:none;
   z-index:8;
-  transform:translate(-50%,-50%);
+  transform:translate3d(-9999px,-9999px,0);
+  will-change:transform;
+  contain:layout paint;
 }
 .joystick.active{display:block}
 .stick{
   position:absolute;
   left:50%;
   top:50%;
-  width:32px;
-  height:32px;
-  margin-left:-16px;
-  margin-top:-16px;
+  width:20px;
+  height:20px;
+  margin-left:-10px;
+  margin-top:-10px;
   border-radius:50%;
-  background:rgba(255,255,255,.82);
-  box-shadow:0 2px 8px rgba(0,0,0,.28);
-  transform:translate(0,0);
+  background:rgba(255,255,255,.78);
+  box-shadow:none;
+  transform:translate3d(0,0,0);
+  will-change:transform;
 }
 .mobile-tip{display:none;margin-top:8px;text-align:center;color:#c9d2ef;font-size:13px}
 
@@ -157,11 +160,16 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
 </section>
 </main>
-<footer>Made for a school project ✨ · v1.7.1 CLEAN</footer>
+<footer>Made for a school project ✨ · v1.8 MOBILE FPS</footer>
 
 <script>
-const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
+const canvas=document.getElementById("gameCanvas");
 const IS_MOBILE = matchMedia("(max-width: 760px)").matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+if(IS_MOBILE){
+  canvas.width=540;
+  canvas.height=405;
+}
+const ctx=canvas.getContext("2d",{alpha:false,desynchronized:true});
 const W=canvas.width,H=canvas.height;
 const playerFace=new Image();
 playerFace.src="./player-face.png";
@@ -174,7 +182,7 @@ const overlayBtn=document.getElementById("overlayBtn");
 
 const keys={};
 let running=false,finished=false,score=0,lives=3,level=1,stars=[],lasers=[],lastVolley=0,startTime=0,finishTime=0,invincibleUntil=0,timerStarted=false;
-const player={x:W/2,y:H/2,r:16,speed:IS_MOBILE?410:390};
+const player={x:W/2,y:H/2,r:IS_MOBILE?13:16,speed:IS_MOBILE?308:390};
 
 const joystick=document.getElementById("joystick"),stick=document.getElementById("stick");
 let joyX=0,joyY=0,joystickActive=false,activePointerId=null;
@@ -256,7 +264,7 @@ function spawnLaser(forceHoming=false){
   const homingChance=score<4?0:Math.min(0.16+(score-4)*0.055,0.43);
   const homing=forceHoming || (score>=4 && Math.random()<homingChance);
 
-  const speed=((IS_MOBILE?330:310)+(level-1)*26)*(homing?0.88:1);
+  const speed=((IS_MOBILE?248:310)+(level-1)*(IS_MOBILE?19.5:26))*(homing?0.88:1);
   const vx=dx/len*speed,vy=dy/len*speed;
 
   lasers.push({
@@ -276,7 +284,7 @@ function fireVolley(){
   for(let i=0;i<count;i++){
     setTimeout(()=>{
       if(!running)return;
-      if(IS_MOBILE && lasers.length>=18) lasers.shift();
+      if(IS_MOBILE && lasers.length>=14) lasers.shift();
       // 별 7개부터는 한 발 정도는 확실하게 추적형이 섞여 후반 난이도를 올림
       spawnLaser(score>=7 && i===count-1);
     },i*90);
@@ -380,7 +388,7 @@ function drawPlayerFace(){
 
 function draw(){
  ctx.clearRect(0,0,W,H);ctx.fillStyle="#070b16";ctx.fillRect(0,0,W,H);
- ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<(IS_MOBILE?18:45);i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
+ ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<(IS_MOBILE?10:45);i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
  if(stars.length)drawStar(stars[0].x,stars[0].y,14);
  lasers.forEach(l=>{
    ctx.save();
@@ -415,7 +423,7 @@ let lastFrameTime=performance.now();
 function loop(now){
   let dt=(now-lastFrameTime)/1000;
   lastFrameTime=now;
-  dt=Math.min(dt,0.10);
+  dt=Math.min(dt,0.075);
   update(now,dt);
   draw();
   requestAnimationFrame(loop);
@@ -434,7 +442,7 @@ function getCanvasLocal(clientX,clientY){
 }
 
 let joyBaseX=0,joyBaseY=0;
-const JOY_RADIUS=27;
+const JOY_RADIUS=18;
 
 /* 터치한 위치에 조이스틱을 생성한다. */
 function startFloatingJoystick(clientX,clientY,pointerId){
@@ -444,10 +452,9 @@ function startFloatingJoystick(clientX,clientY,pointerId){
   activePointerId=pointerId;
   joystickActive=true;
 
-  joystick.style.left=joyBaseX+"px";
-  joystick.style.top=joyBaseY+"px";
+  joystick.style.transform=`translate3d(${joyBaseX-24}px,${joyBaseY-24}px,0)`;
   joystick.classList.add("active");
-  stick.style.transform="translate(0px,0px)";
+  stick.style.transform="translate3d(0,0,0)";
   joyX=0;
   joyY=0;
 }
@@ -474,8 +481,7 @@ function moveFloatingJoystick(clientX,clientY){
     joyBaseX+=nx*overflow*0.28;
     joyBaseY+=ny*overflow*0.28;
 
-    joystick.style.left=joyBaseX+"px";
-    joystick.style.top=joyBaseY+"px";
+    joystick.style.transform=`translate3d(${joyBaseX-24}px,${joyBaseY-24}px,0)`;
 
     dx=p.x-joyBaseX;
     dy=p.y-joyBaseY;
@@ -487,7 +493,7 @@ function moveFloatingJoystick(clientX,clientY){
     dy=dy/dist*JOY_RADIUS;
   }
 
-  stick.style.transform=`translate(${dx}px,${dy}px)`;
+  stick.style.transform=`translate3d(${dx}px,${dy}px,0)`;
   const rawX=dx/JOY_RADIUS;
   const rawY=dy/JOY_RADIUS;
   const rawMag=Math.min(1,Math.hypot(rawX,rawY));
@@ -506,7 +512,7 @@ function resetJoystick(){
   joyY=0;
   joystickActive=false;
   activePointerId=null;
-  stick.style.transform="translate(0px,0px)";
+  stick.style.transform="translate3d(0,0,0)";
   joystick.classList.remove("active");
 }
 
@@ -574,6 +580,10 @@ canvas.addEventListener("touchcancel",resetJoystick,{passive:false});
 /* 시작 버튼도 click 대신 pointer/touch 계열까지 모두 대응 */
 overlayBtn.addEventListener("click",resetGame);
 overlayBtn.addEventListener("touchend",e=>{e.preventDefault();resetGame();},{passive:false});
+
+document.addEventListener("visibilitychange",()=>{
+  lastFrameTime=performance.now();
+});
 
 requestAnimationFrame(loop);
 </script>
