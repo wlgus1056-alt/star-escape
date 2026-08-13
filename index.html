@@ -28,38 +28,8 @@ canvas{width:100%;aspect-ratio:4/3;background:#070b16;will-change:transform;bord
 .message{margin-top:12px;padding:10px;min-height:56px;background:#171f3d;border-radius:12px;line-height:1.4}
 .record{margin-top:12px;padding:10px;background:#10182f;border-radius:12px;color:#dfe5ff;font-size:14px}
 footer{text-align:center;color:#aeb8d8;padding:10px}
-.joystick{
-  position:absolute;
-  left:0;
-  top:0;
-  width:48px;
-  height:48px;
-  border-radius:50%;
-  background:rgba(255,255,255,.08);
-  border:1px solid rgba(255,255,255,.24);
-  touch-action:none;
-  display:none;
-  pointer-events:none;
-  z-index:8;
-  transform:translate3d(-9999px,-9999px,0);
-  will-change:transform;
-  contain:layout paint;
-}
-.joystick.active{display:block}
-.stick{
-  position:absolute;
-  left:50%;
-  top:50%;
-  width:20px;
-  height:20px;
-  margin-left:-10px;
-  margin-top:-10px;
-  border-radius:50%;
-  background:rgba(255,255,255,.78);
-  box-shadow:none;
-  transform:translate3d(0,0,0);
-  will-change:transform;
-}
+
+
 .mobile-tip{display:none;margin-top:8px;text-align:center;color:#c9d2ef;font-size:13px}
 
 .game-overlay{
@@ -103,6 +73,24 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 }
 .game-overlay.hidden{display:none}
 
+
+.touch-indicator{
+  position:absolute;
+  left:0;
+  top:0;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.85);
+  background:rgba(255,255,255,.10);
+  pointer-events:none;
+  z-index:8;
+  display:none;
+  transform:translate3d(-9999px,-9999px,0);
+  will-change:transform;
+}
+.touch-indicator.active{display:block}
+
 @media(max-width:760px){
   header h1{font-size:29px}
   .game-wrap{grid-template-columns:1fr}
@@ -121,7 +109,7 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <main>
 <section class="hero" id="home">
 <h2>360° 레이저 피하기</h2>
-<p>PC에서는 방향키 <strong>↑ ↓ ← →</strong>,<br>모바일에서는 <strong>게임 화면을 터치한 위치에 나타나는 조이스틱</strong>으로 이동합니다.<br><br>게임 시작과 다시하기는 게임 화면 중앙 버튼을 사용합니다.</p>
+<p>PC에서는 방향키 <strong>↑ ↓ ← →</strong>,<br>모바일에서는 <strong>게임 화면을 터치하고 드래그</strong>해서 이동합니다.<br><br>게임 시작과 다시하기는 게임 화면 중앙 버튼을 사용합니다.</p>
 
 </section>
 <section id="game">
@@ -136,8 +124,8 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
     <button class="overlay-btn" id="overlayBtn">게임 시작</button>
   </div>
 </div>
-<div class="joystick" id="joystick"><div class="stick" id="stick"></div></div>
-<div class="mobile-tip">게임 화면을 터치한 곳에 조이스틱이 나타납니다. 손가락을 끌어서 이동하세요.</div>
+<div class="touch-indicator" id="touchIndicator"></div>
+<div class="mobile-tip">화면을 터치한 채 드래그하면 이동합니다.</div>
 </div>
 <div class="side">
 <div class="stat"><span>⭐ 별</span><b><span id="score">0</span> / 10</b></div>
@@ -160,7 +148,7 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
 </section>
 </main>
-<footer>Made for a school project ✨ · v1.8 MOBILE FPS</footer>
+<footer>Made for a school project ✨ · v2.0 MOBILE SCALE</footer>
 
 <script>
 const canvas=document.getElementById("gameCanvas");
@@ -182,9 +170,9 @@ const overlayBtn=document.getElementById("overlayBtn");
 
 const keys={};
 let running=false,finished=false,score=0,lives=3,level=1,stars=[],lasers=[],lastVolley=0,startTime=0,finishTime=0,invincibleUntil=0,timerStarted=false;
-const player={x:W/2,y:H/2,r:IS_MOBILE?13:16,speed:IS_MOBILE?308:390};
+const player={x:W/2,y:H/2,r:IS_MOBILE?20:16,speed:IS_MOBILE?308:390};
 
-const joystick=document.getElementById("joystick"),stick=document.getElementById("stick");
+const touchIndicator=document.getElementById("touchIndicator");
 let joyX=0,joyY=0,joystickActive=false,activePointerId=null;
 
 
@@ -269,8 +257,8 @@ function spawnLaser(forceHoming=false){
 
   lasers.push({
     x:start.x,y:start.y,vx,vy,
-    w:homing?48:42,
-    h:homing?10:8,
+    w:homing?(IS_MOBILE?62:48):(IS_MOBILE?54:42),
+    h:homing?(IS_MOBILE?12:10):(IS_MOBILE?10:8),
     angle:Math.atan2(vy,vx),
     homing,
     born:performance.now(),
@@ -389,7 +377,7 @@ function drawPlayerFace(){
 function draw(){
  ctx.clearRect(0,0,W,H);ctx.fillStyle="#070b16";ctx.fillRect(0,0,W,H);
  ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<(IS_MOBILE?10:45);i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
- if(stars.length)drawStar(stars[0].x,stars[0].y,14);
+ if(stars.length)drawStar(stars[0].x,stars[0].y,IS_MOBILE?18:14);
  lasers.forEach(l=>{
    ctx.save();
    ctx.translate(l.x,l.y);
@@ -441,79 +429,54 @@ function getCanvasLocal(clientX,clientY){
   };
 }
 
-let joyBaseX=0,joyBaseY=0;
-const JOY_RADIUS=18;
+let touchStartX=0,touchStartY=0;
+const TOUCH_RANGE=46;
 
-/* 터치한 위치에 조이스틱을 생성한다. */
-function startFloatingJoystick(clientX,clientY,pointerId){
+function startTouchControl(clientX,clientY,pointerId){
   const p=getCanvasLocal(clientX,clientY);
-  joyBaseX=p.x;
-  joyBaseY=p.y;
+  touchStartX=p.x;
+  touchStartY=p.y;
   activePointerId=pointerId;
   joystickActive=true;
-
-  joystick.style.transform=`translate3d(${joyBaseX-24}px,${joyBaseY-24}px,0)`;
-  joystick.classList.add("active");
-  stick.style.transform="translate3d(0,0,0)";
   joyX=0;
   joyY=0;
+
+  touchIndicator.style.transform=`translate3d(${p.x-8}px,${p.y-8}px,0)`;
+  touchIndicator.classList.add("active");
 }
 
-/*
- 손가락이 조이스틱 반경을 넘으면 중심도 조금씩 같이 따라간다.
- 그래서 고정된 패드가 아니라 손가락 이동 동선을 따라가는
- '플로팅 조이스틱'처럼 움직인다.
-*/
-function moveFloatingJoystick(clientX,clientY){
+function moveTouchControl(clientX,clientY){
   if(!joystickActive)return;
 
   const p=getCanvasLocal(clientX,clientY);
-  let dx=p.x-joyBaseX;
-  let dy=p.y-joyBaseY;
-  let dist=Math.hypot(dx,dy);
+  let dx=p.x-touchStartX;
+  let dy=p.y-touchStartY;
+  const dist=Math.hypot(dx,dy);
 
-  if(dist>JOY_RADIUS){
-    const overflow=dist-JOY_RADIUS;
-    const nx=dx/dist;
-    const ny=dy/dist;
-
-    // 베이스가 손가락을 부드럽게 따라오도록 이동
-    joyBaseX+=nx*overflow*0.28;
-    joyBaseY+=ny*overflow*0.28;
-
-    joystick.style.transform=`translate3d(${joyBaseX-24}px,${joyBaseY-24}px,0)`;
-
-    dx=p.x-joyBaseX;
-    dy=p.y-joyBaseY;
-    dist=Math.hypot(dx,dy);
+  if(dist>TOUCH_RANGE){
+    dx=dx/dist*TOUCH_RANGE;
+    dy=dy/dist*TOUCH_RANGE;
   }
 
-  if(dist>JOY_RADIUS){
-    dx=dx/dist*JOY_RADIUS;
-    dy=dy/dist*JOY_RADIUS;
-  }
-
-  stick.style.transform=`translate3d(${dx}px,${dy}px,0)`;
-  const rawX=dx/JOY_RADIUS;
-  const rawY=dy/JOY_RADIUS;
-  const rawMag=Math.min(1,Math.hypot(rawX,rawY));
-  if(rawMag<0.06){
+  const mag=Math.min(1,Math.hypot(dx,dy)/TOUCH_RANGE);
+  if(mag<0.05){
     joyX=0;
     joyY=0;
   }else{
-    const boosted=Math.min(1,0.48+rawMag*1.15);
-    joyX=(rawX/rawMag)*boosted;
-    joyY=(rawY/rawMag)*boosted;
+    joyX=(dx/TOUCH_RANGE)/mag*mag;
+    joyY=(dy/TOUCH_RANGE)/mag*mag;
   }
+
+  // 작은 원은 현재 손가락 위치만 따라다님
+  touchIndicator.style.transform=`translate3d(${p.x-8}px,${p.y-8}px,0)`;
 }
 
-function resetJoystick(){
+function resetTouchControl(){
   joyX=0;
   joyY=0;
   joystickActive=false;
   activePointerId=null;
-  stick.style.transform="translate3d(0,0,0)";
-  joystick.classList.remove("active");
+  touchIndicator.classList.remove("active");
 }
 
 /* PC 키보드 */
@@ -525,56 +488,51 @@ window.addEventListener("keydown",e=>{
 });
 window.addEventListener("keyup",e=>keys[e.key]=false);
 
-/*
- 모바일: 게임 화면 아무 곳이나 터치하면
- 1) 게임이 시작되지 않은 상태면 즉시 시작
- 2) 터치 위치에 플로팅 조이스틱 생성
-*/
+/* 모바일: 터치한 위치를 기준점으로 하고 드래그 방향으로 이동 */
 canvas.addEventListener("pointerdown",e=>{
   if(e.pointerType==="mouse")return;
   e.preventDefault();
+  if(!running)return;
 
-  if(!running) return;
-
-  startFloatingJoystick(e.clientX,e.clientY,e.pointerId);
+  startTouchControl(e.clientX,e.clientY,e.pointerId);
   try{canvas.setPointerCapture(e.pointerId)}catch(err){}
 },{passive:false});
 
 canvas.addEventListener("pointermove",e=>{
   if(!joystickActive||e.pointerId!==activePointerId)return;
   e.preventDefault();
-  moveFloatingJoystick(e.clientX,e.clientY);
+  moveTouchControl(e.clientX,e.clientY);
 },{passive:false});
 
 canvas.addEventListener("pointerup",e=>{
-  if(e.pointerId===activePointerId)resetJoystick();
+  if(e.pointerId===activePointerId)resetTouchControl();
 },{passive:false});
 
-canvas.addEventListener("pointercancel",resetJoystick,{passive:false});
+canvas.addEventListener("pointercancel",resetTouchControl,{passive:false});
 
-/* PointerEvent 미지원 브라우저에서만 터치 이벤트 사용 */
+/* PointerEvent 미지원 브라우저 보조 */
 if(!window.PointerEvent){
-canvas.addEventListener("touchstart",e=>{
-  if(!e.touches.length)return;
-  e.preventDefault();
-  if(!running)return;
-  const t=e.touches[0];
-  startFloatingJoystick(t.clientX,t.clientY,"touch");
-},{passive:false});
+  canvas.addEventListener("touchstart",e=>{
+    if(!e.touches.length)return;
+    e.preventDefault();
+    if(!running)return;
+    const t=e.touches[0];
+    startTouchControl(t.clientX,t.clientY,"touch");
+  },{passive:false});
 
-canvas.addEventListener("touchmove",e=>{
-  if(!joystickActive||!e.touches.length)return;
-  e.preventDefault();
-  const t=e.touches[0];
-  moveFloatingJoystick(t.clientX,t.clientY);
-},{passive:false});
+  canvas.addEventListener("touchmove",e=>{
+    if(!joystickActive||!e.touches.length)return;
+    e.preventDefault();
+    const t=e.touches[0];
+    moveTouchControl(t.clientX,t.clientY);
+  },{passive:false});
 
-canvas.addEventListener("touchend",e=>{
-  e.preventDefault();
-  resetJoystick();
-},{passive:false});
+  canvas.addEventListener("touchend",e=>{
+    e.preventDefault();
+    resetTouchControl();
+  },{passive:false});
 
-canvas.addEventListener("touchcancel",resetJoystick,{passive:false});
+  canvas.addEventListener("touchcancel",resetTouchControl,{passive:false});
 }
 
 /* 시작 버튼도 click 대신 pointer/touch 계열까지 모두 대응 */
