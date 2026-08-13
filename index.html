@@ -21,7 +21,7 @@ section{background:rgba(20,27,53,.95);border:1px solid #2d3866;border-radius:18p
 button{border:0;border-radius:12px;padding:11px 18px;background:#ffdb4d;font-weight:800;font-size:16px;cursor:pointer}
 .game-wrap{display:grid;grid-template-columns:1fr 225px;gap:14px;align-items:start}
 .canvas-wrap{position:relative;width:100%}
-canvas{width:100%;aspect-ratio:4/3;background:#070b16;border:2px solid #303d70;border-radius:16px;display:block;touch-action:none}
+canvas{width:100%;aspect-ratio:4/3;background:#070b16;will-change:transform;border:2px solid #303d70;border-radius:16px;display:block;touch-action:none}
 .side{background:#0f162d;border:1px solid #29355f;border-radius:16px;padding:15px}
 .stat{display:flex;justify-content:space-between;margin:9px 0;padding-bottom:8px;border-bottom:1px solid #29345a}
 .help{font-size:14px;color:#aeb8d8;line-height:1.6}
@@ -142,10 +142,11 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
 </section>
 </main>
-<footer>Made for a school project ✨ · v1.3</footer>
+<footer>Made for a school project ✨ · v1.4 MOBILE</footer>
 
 <script>
 const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
+const IS_MOBILE = matchMedia("(max-width: 760px)").matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const W=canvas.width,H=canvas.height;
 const scoreEl=document.getElementById("score"),livesEl=document.getElementById("lives"),levelEl=document.getElementById("level"),timerEl=document.getElementById("timer"),messageEl=document.getElementById("message"),bestTimeEl=document.getElementById("bestTime");
 const gameOverlay=document.getElementById("gameOverlay");
@@ -155,7 +156,7 @@ const overlayBtn=document.getElementById("overlayBtn");
 
 const keys={};
 let running=false,finished=false,score=0,lives=3,level=1,stars=[],lasers=[],lastVolley=0,startTime=0,finishTime=0,invincibleUntil=0;
-const player={x:W/2,y:H/2,r:16,speed:390};
+const player={x:W/2,y:H/2,r:16,speed:IS_MOBILE?410:390};
 
 const joystick=document.getElementById("joystick"),stick=document.getElementById("stick");
 let joyX=0,joyY=0,joystickActive=false,activePointerId=null;
@@ -181,8 +182,17 @@ function resetGame(){gameOverlay.classList.add("hidden");score=0;lives=3;level=1
 function circleHit(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r}
 function rectCircleHit(rect,c){const cx=Math.max(rect.x-rect.w/2,Math.min(c.x,rect.x+rect.w/2)),cy=Math.max(rect.y-rect.h/2,Math.min(c.y,rect.y+rect.h/2)),dx=c.x-cx,dy=c.y-cy;return dx*dx+dy*dy<c.r*c.r}
 function randomEdgePoint(){const edge=Math.floor(Math.random()*4);if(edge===0)return{x:random(0,W),y:-35};if(edge===1)return{x:W+35,y:random(0,H)};if(edge===2)return{x:random(0,W),y:H+35};return{x:-35,y:random(0,H)}}
-function spawnLaser(){const start=randomEdgePoint(),targetX=player.x+random(-165,165),targetY=player.y+random(-165,165),dx=targetX-start.x,dy=targetY-start.y,len=Math.hypot(dx,dy)||1,speed=310+(level-1)*26,vx=dx/len*speed,vy=dy/len*speed;lasers.push({x:start.x,y:start.y,vx,vy,w:42,h:8,angle:Math.atan2(vy,vx)})}
-function fireVolley(){const count=Math.min(1+Math.floor(score/2),6);for(let i=0;i<count;i++)setTimeout(()=>{if(running)spawnLaser()},i*90)}
+function spawnLaser(){const start=randomEdgePoint(),targetX=player.x+random(-165,165),targetY=player.y+random(-165,165),dx=targetX-start.x,dy=targetY-start.y,len=Math.hypot(dx,dy)||1,speed=(IS_MOBILE?330:310)+(level-1)*26,vx=dx/len*speed,vy=dy/len*speed;lasers.push({x:start.x,y:start.y,vx,vy,w:42,h:8,angle:Math.atan2(vy,vx)})}
+function fireVolley(){
+  const count=Math.min(1+Math.floor(score/2),IS_MOBILE?5:6);
+  for(let i=0;i<count;i++){
+    setTimeout(()=>{
+      if(!running)return;
+      if(IS_MOBILE && lasers.length>=18) lasers.shift();
+      spawnLaser();
+    },i*90);
+  }
+}
 function clearGame(now){running=false;finished=true;finishTime=(now-startTime)/1000;
   overlayTitle.textContent="🏆 MISSION CLEAR!";
   overlayText.textContent="기록 "+finishTime.toFixed(2)+"초";
@@ -220,15 +230,15 @@ function update(now,dt){
    }
  }
 }
-function drawStar(x,y,r){ctx.save();ctx.translate(x,y);ctx.fillStyle="#ffdb4d";ctx.shadowBlur=18;ctx.shadowColor="#ffdb4d";ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2===0?r:r*.45,px=Math.cos(a)*rr,py=Math.sin(a)*rr;i===0?ctx.moveTo(px,py):ctx.lineTo(px,py)}ctx.closePath();ctx.fill();ctx.restore()}
+function drawStar(x,y,r){ctx.save();ctx.translate(x,y);ctx.fillStyle="#ffdb4d";if(!IS_MOBILE){ctx.shadowBlur=18;ctx.shadowColor="#ffdb4d";}ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2===0?r:r*.45,px=Math.cos(a)*rr,py=Math.sin(a)*rr;i===0?ctx.moveTo(px,py):ctx.lineTo(px,py)}ctx.closePath();ctx.fill();ctx.restore()}
 function draw(){
  ctx.clearRect(0,0,W,H);ctx.fillStyle="#070b16";ctx.fillRect(0,0,W,H);
- ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<45;i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
+ ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<(IS_MOBILE?18:45);i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
  if(stars.length)drawStar(stars[0].x,stars[0].y,14);
- lasers.forEach(l=>{ctx.save();ctx.translate(l.x,l.y);ctx.rotate(l.angle);ctx.shadowBlur=18;ctx.shadowColor="#ff254f";ctx.fillStyle="#ff4163";ctx.fillRect(-l.w/2,-l.h/2,l.w,l.h);ctx.fillStyle="#fff";ctx.fillRect(-l.w/2+7,-1,l.w-14,2);ctx.restore()});
+ lasers.forEach(l=>{ctx.save();ctx.translate(l.x,l.y);ctx.rotate(l.angle);if(!IS_MOBILE){ctx.shadowBlur=18;ctx.shadowColor="#ff254f";}ctx.fillStyle="#ff4163";ctx.fillRect(-l.w/2,-l.h/2,l.w,l.h);ctx.fillStyle="#fff";ctx.fillRect(-l.w/2+7,-1,l.w-14,2);ctx.restore()});
  const now=performance.now();
  if(now>=invincibleUntil||Math.floor(now/120)%2===0){
-   ctx.save();ctx.shadowBlur=15;ctx.shadowColor="#6fe6a4";ctx.fillStyle="#6fe6a4";ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();ctx.restore();
+   ctx.save();if(!IS_MOBILE){ctx.shadowBlur=15;ctx.shadowColor="#6fe6a4";}ctx.fillStyle="#6fe6a4";ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();ctx.restore();
    ctx.fillStyle="#092317";ctx.beginPath();ctx.arc(player.x-5,player.y-3,2,0,Math.PI*2);ctx.arc(player.x+5,player.y-3,2,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#092317";ctx.lineWidth=2;ctx.beginPath();ctx.arc(player.x,player.y+3,6,0,Math.PI);ctx.stroke()
  }
  if(!running){ctx.fillStyle="rgba(0,0,0,.48)";ctx.fillRect(0,0,W,H);ctx.fillStyle="#fff";ctx.textAlign="center";if(finished){ctx.font="bold 40px Arial";ctx.fillText(lives>0?"MISSION CLEAR!":"GAME OVER",W/2,H/2-18);ctx.font="19px Arial";ctx.fillText(lives>0?"기록 "+finishTime.toFixed(2)+"초":"다시 도전해보세요!",W/2,H/2+22)}else{ctx.font="bold 36px Arial";ctx.fillText("STAR ESCAPE",W/2,H/2-15);ctx.font="18px Arial";ctx.fillText("게임 시작 버튼을 눌러주세요.",W/2,H/2+25)}}
@@ -237,7 +247,7 @@ let lastFrameTime=performance.now();
 function loop(now){
   let dt=(now-lastFrameTime)/1000;
   lastFrameTime=now;
-  dt=Math.min(dt,0.05);
+  dt=Math.min(dt,0.10);
   update(now,dt);
   draw();
   requestAnimationFrame(loop);
@@ -368,7 +378,8 @@ canvas.addEventListener("pointerup",e=>{
 
 canvas.addEventListener("pointercancel",resetJoystick,{passive:false});
 
-/* iOS Safari에서 PointerEvent 처리가 제한될 때를 위한 터치 보조 */
+/* PointerEvent 미지원 브라우저에서만 터치 이벤트 사용 */
+if(!window.PointerEvent){
 canvas.addEventListener("touchstart",e=>{
   if(!e.touches.length)return;
   e.preventDefault();
@@ -390,6 +401,7 @@ canvas.addEventListener("touchend",e=>{
 },{passive:false});
 
 canvas.addEventListener("touchcancel",resetJoystick,{passive:false});
+}
 
 /* 시작 버튼도 click 대신 pointer/touch 계열까지 모두 대응 */
 overlayBtn.addEventListener("click",resetGame);
