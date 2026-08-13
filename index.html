@@ -28,38 +28,8 @@ canvas{width:100%;aspect-ratio:4/3;background:#070b16;will-change:transform;bord
 .message{margin-top:12px;padding:10px;min-height:56px;background:#171f3d;border-radius:12px;line-height:1.4}
 .record{margin-top:12px;padding:10px;background:#10182f;border-radius:12px;color:#dfe5ff;font-size:14px}
 footer{text-align:center;color:#aeb8d8;padding:10px}
-.joystick{
-  position:absolute;
-  left:0;
-  top:0;
-  width:48px;
-  height:48px;
-  border-radius:50%;
-  background:rgba(255,255,255,.08);
-  border:1px solid rgba(255,255,255,.24);
-  touch-action:none;
-  display:none;
-  pointer-events:none;
-  z-index:8;
-  transform:translate3d(-9999px,-9999px,0);
-  will-change:transform;
-  contain:layout paint;
-}
-.joystick.active{display:block}
-.stick{
-  position:absolute;
-  left:50%;
-  top:50%;
-  width:20px;
-  height:20px;
-  margin-left:-10px;
-  margin-top:-10px;
-  border-radius:50%;
-  background:rgba(255,255,255,.78);
-  box-shadow:none;
-  transform:translate3d(0,0,0);
-  will-change:transform;
-}
+
+
 .mobile-tip{display:none;margin-top:8px;text-align:center;color:#c9d2ef;font-size:13px}
 
 .game-overlay{
@@ -103,6 +73,24 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 }
 .game-overlay.hidden{display:none}
 
+
+.touch-indicator{
+  position:absolute;
+  left:0;
+  top:0;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,.72);
+  background:rgba(255,255,255,.10);
+  pointer-events:none;
+  z-index:8;
+  display:none;
+  transform:translate3d(-9999px,-9999px,0);
+  will-change:transform;
+}
+.touch-indicator.active{display:block}
+
 @media(max-width:760px){
   header h1{font-size:29px}
   .game-wrap{grid-template-columns:1fr}
@@ -136,8 +124,8 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
     <button class="overlay-btn" id="overlayBtn">게임 시작</button>
   </div>
 </div>
-<div class="joystick" id="joystick"><div class="stick" id="stick"></div></div>
-<div class="mobile-tip">게임 화면을 터치한 곳에 조이스틱이 나타납니다. 손가락을 끌어서 이동하세요.</div>
+<div class="touch-indicator" id="touchIndicator"></div>
+<div class="mobile-tip">게임 화면을 터치하고 손가락을 끌면 그 방향으로 이동합니다.</div>
 </div>
 <div class="side">
 <div class="stat"><span>⭐ 별</span><b><span id="score">0</span> / 10</b></div>
@@ -148,10 +136,6 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 
 <div class="message" id="message">게임 시작 버튼을 눌러주세요.</div>
 <div class="record">🏆 최고 기록<br><b id="bestTime">아직 기록 없음</b></div>
-<div class="record">
-  🏅 이 기기 TOP 10
-  <div id="localRanking" style="margin-top:8px;line-height:1.7">아직 기록 없음</div>
-</div>
 </div>
 </div>
 </section>
@@ -160,16 +144,11 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
 </section>
 </main>
-<footer>Made for a school project ✨ · v1.8 MOBILE FPS</footer>
+<footer>Made for a school project ✨ · v1.9 SMOOTH</footer>
 
 <script>
-const canvas=document.getElementById("gameCanvas");
+const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
 const IS_MOBILE = matchMedia("(max-width: 760px)").matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-if(IS_MOBILE){
-  canvas.width=540;
-  canvas.height=405;
-}
-const ctx=canvas.getContext("2d",{alpha:false,desynchronized:true});
 const W=canvas.width,H=canvas.height;
 const playerFace=new Image();
 playerFace.src="./player-face.png";
@@ -182,37 +161,10 @@ const overlayBtn=document.getElementById("overlayBtn");
 
 const keys={};
 let running=false,finished=false,score=0,lives=3,level=1,stars=[],lasers=[],lastVolley=0,startTime=0,finishTime=0,invincibleUntil=0,timerStarted=false;
-const player={x:W/2,y:H/2,r:IS_MOBILE?13:16,speed:IS_MOBILE?308:390};
+const player={x:W/2,y:H/2,r:16,speed:IS_MOBILE?410:390};
 
-const joystick=document.getElementById("joystick"),stick=document.getElementById("stick");
+const touchIndicator=document.getElementById("touchIndicator");
 let joyX=0,joyY=0,joystickActive=false,activePointerId=null;
-
-
-const localRankingEl=document.getElementById("localRanking");
-function getLocalRanking(){
-  try{
-    const raw=localStorage.getItem("starEscapeLocalTop10");
-    return raw?JSON.parse(raw):[];
-  }catch(e){ return []; }
-}
-function renderLocalRanking(){
-  if(!localRankingEl)return;
-  const arr=getLocalRanking();
-  if(!arr.length){
-    localRankingEl.textContent="아직 기록 없음";
-    return;
-  }
-  localRankingEl.innerHTML=arr.map((t,i)=>(i+1)+"위 · "+Number(t).toFixed(2)+"초").join("<br>");
-}
-function saveLocalRanking(time){
-  const arr=getLocalRanking();
-  arr.push(Number(time));
-  arr.sort((a,b)=>a-b);
-  const top=arr.slice(0,10);
-  try{localStorage.setItem("starEscapeLocalTop10",JSON.stringify(top));}catch(e){}
-  renderLocalRanking();
-}
-renderLocalRanking();
 
 function random(a,b){return Math.random()*(b-a)+a}
 let memoryBest=null;
@@ -231,24 +183,7 @@ function loadBest(){
 loadBest();
 function updateUI(){scoreEl.textContent=score;livesEl.textContent="❤️".repeat(lives)+"🖤".repeat(3-lives);levelEl.textContent=level}
 function spawnStar(){const p=55;let s;do{s={x:random(p,W-p),y:random(p,H-p),r:10}}while(Math.hypot(s.x-player.x,s.y-player.y)<110);stars=[s]}
-function resetGame(){
-  gameOverlay.classList.add("hidden");
-  score=0;
-  lives=3;
-  level=1;
-  stars=[];
-  lasers=[];
-  player.x=W/2;
-  player.y=H/2;
-  running=true;
-  finished=false;
-  timerStarted=false;
-  startTime=0;
-  finishTime=0;
-  lastVolley=performance.now();
-  invincibleUntil=0;
-  timerEl.textContent="0.00초";
-  spawnStar();updateUI();messageEl.textContent="⭐ 캐릭터를 움직이는 순간부터 시간이 시작됩니다!";document.getElementById("game").scrollIntoView({behavior:"smooth"})}
+function resetGame(){gameOverlay.classList.add("hidden");score=0;lives=3;level=1;stars=[];lasers=[];player.x=W/2;player.y=H/2;running=true;finished=false;timerStarted=false;startTime=0;finishTime=0;lastVolley=performance.now();invincibleUntil=0;timerEl.textContent="0.00초";spawnStar();updateUI();messageEl.textContent="⭐ 캐릭터를 움직이는 순간부터 시간이 시작됩니다!";document.getElementById("game").scrollIntoView({behavior:"smooth"})}
 function circleHit(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r}
 function rectCircleHit(rect,c){const cx=Math.max(rect.x-rect.w/2,Math.min(c.x,rect.x+rect.w/2)),cy=Math.max(rect.y-rect.h/2,Math.min(c.y,rect.y+rect.h/2)),dx=c.x-cx,dy=c.y-cy;return dx*dx+dy*dy<c.r*c.r}
 function randomEdgePoint(){const edge=Math.floor(Math.random()*4);if(edge===0)return{x:random(0,W),y:-35};if(edge===1)return{x:W+35,y:random(0,H)};if(edge===2)return{x:random(0,W),y:H+35};return{x:-35,y:random(0,H)}}
@@ -294,7 +229,7 @@ function clearGame(now){running=false;finished=true;finishTime=(now-startTime)/1
   overlayTitle.textContent="🏆 MISSION CLEAR!";
   overlayText.textContent="기록 "+finishTime.toFixed(2)+"초";
   overlayBtn.textContent="다시하기";
-  gameOverlay.classList.remove("hidden");timerEl.textContent=finishTime.toFixed(2)+"초";saveLocalRanking(finishTime);const old=safeGetBest();if(!old||finishTime<Number(old)){safeSetBest(finishTime);bestTimeEl.textContent=finishTime.toFixed(2)+"초";messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>"+finishTime.toFixed(2)+"초 — 새로운 최고 기록!"}else{messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>기록: "+finishTime.toFixed(2)+"초"}}
+  gameOverlay.classList.remove("hidden");timerEl.textContent=finishTime.toFixed(2)+"초";const old=safeGetBest();if(!old||finishTime<Number(old)){safeSetBest(finishTime);bestTimeEl.textContent=finishTime.toFixed(2)+"초";messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>"+finishTime.toFixed(2)+"초 — 새로운 최고 기록!"}else{messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>기록: "+finishTime.toFixed(2)+"초"}}
 function update(now,dt){
  if(!running)return;
  let moveX=0,moveY=0;
@@ -352,6 +287,19 @@ function update(now,dt){
    }
  }
 }
+
+const bgCanvas=document.createElement("canvas");
+bgCanvas.width=W; bgCanvas.height=H;
+const bgCtx=bgCanvas.getContext("2d",{alpha:false});
+bgCtx.fillStyle="#070b16";
+bgCtx.fillRect(0,0,W,H);
+bgCtx.fillStyle="rgba(255,255,255,.32)";
+const BG_DOTS=IS_MOBILE?12:45;
+for(let i=0;i<BG_DOTS;i++){
+  const x=(i*157)%W,y=(i*89)%H;
+  bgCtx.fillRect(x,y,1.5,1.5);
+}
+
 function drawStar(x,y,r){ctx.save();ctx.translate(x,y);ctx.fillStyle="#ffdb4d";if(!IS_MOBILE){ctx.shadowBlur=18;ctx.shadowColor="#ffdb4d";}ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2===0?r:r*.45,px=Math.cos(a)*rr,py=Math.sin(a)*rr;i===0?ctx.moveTo(px,py):ctx.lineTo(px,py)}ctx.closePath();ctx.fill();ctx.restore()}
 
 function drawPlayerFace(){
@@ -388,7 +336,7 @@ function drawPlayerFace(){
 
 function draw(){
  ctx.clearRect(0,0,W,H);ctx.fillStyle="#070b16";ctx.fillRect(0,0,W,H);
- ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<(IS_MOBILE?10:45);i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
+ ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<(IS_MOBILE?18:45);i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
  if(stars.length)drawStar(stars[0].x,stars[0].y,14);
  lasers.forEach(l=>{
    ctx.save();
@@ -423,7 +371,7 @@ let lastFrameTime=performance.now();
 function loop(now){
   let dt=(now-lastFrameTime)/1000;
   lastFrameTime=now;
-  dt=Math.min(dt,0.075);
+  dt=Math.min(dt,0.10);
   update(now,dt);
   draw();
   requestAnimationFrame(loop);
@@ -434,157 +382,92 @@ window.addEventListener("keyup",e=>keys[e.key]=false);
 
 function getCanvasLocal(clientX,clientY){
   const rect=canvas.getBoundingClientRect();
-  return {
-    x:clientX-rect.left,
-    y:clientY-rect.top,
-    rect
-  };
+  return {x:clientX-rect.left,y:clientY-rect.top,rect};
 }
+let touchStartX=0,touchStartY=0;
+const TOUCH_RANGE=46;
 
-let joyBaseX=0,joyBaseY=0;
-const JOY_RADIUS=18;
-
-/* 터치한 위치에 조이스틱을 생성한다. */
-function startFloatingJoystick(clientX,clientY,pointerId){
+function startTouchControl(clientX,clientY,pointerId){
   const p=getCanvasLocal(clientX,clientY);
-  joyBaseX=p.x;
-  joyBaseY=p.y;
+  touchStartX=p.x;
+  touchStartY=p.y;
   activePointerId=pointerId;
   joystickActive=true;
-
-  joystick.style.transform=`translate3d(${joyBaseX-24}px,${joyBaseY-24}px,0)`;
-  joystick.classList.add("active");
-  stick.style.transform="translate3d(0,0,0)";
-  joyX=0;
-  joyY=0;
+  joyX=0; joyY=0;
+  touchIndicator.style.transform=`translate3d(${p.x-11}px,${p.y-11}px,0)`;
+  touchIndicator.classList.add("active");
 }
-
-/*
- 손가락이 조이스틱 반경을 넘으면 중심도 조금씩 같이 따라간다.
- 그래서 고정된 패드가 아니라 손가락 이동 동선을 따라가는
- '플로팅 조이스틱'처럼 움직인다.
-*/
-function moveFloatingJoystick(clientX,clientY){
+function moveTouchControl(clientX,clientY){
   if(!joystickActive)return;
-
   const p=getCanvasLocal(clientX,clientY);
-  let dx=p.x-joyBaseX;
-  let dy=p.y-joyBaseY;
-  let dist=Math.hypot(dx,dy);
-
-  if(dist>JOY_RADIUS){
-    const overflow=dist-JOY_RADIUS;
-    const nx=dx/dist;
-    const ny=dy/dist;
-
-    // 베이스가 손가락을 부드럽게 따라오도록 이동
-    joyBaseX+=nx*overflow*0.28;
-    joyBaseY+=ny*overflow*0.28;
-
-    joystick.style.transform=`translate3d(${joyBaseX-24}px,${joyBaseY-24}px,0)`;
-
-    dx=p.x-joyBaseX;
-    dy=p.y-joyBaseY;
-    dist=Math.hypot(dx,dy);
+  let dx=p.x-touchStartX,dy=p.y-touchStartY;
+  const dist=Math.hypot(dx,dy);
+  if(dist>TOUCH_RANGE){
+    dx=dx/dist*TOUCH_RANGE;
+    dy=dy/dist*TOUCH_RANGE;
   }
-
-  if(dist>JOY_RADIUS){
-    dx=dx/dist*JOY_RADIUS;
-    dy=dy/dist*JOY_RADIUS;
+  const mag=Math.min(1,Math.hypot(dx,dy)/TOUCH_RANGE);
+  if(mag<0.05){joyX=0;joyY=0;}
+  else{
+    joyX=(dx/TOUCH_RANGE);
+    joyY=(dy/TOUCH_RANGE);
   }
-
-  stick.style.transform=`translate3d(${dx}px,${dy}px,0)`;
-  const rawX=dx/JOY_RADIUS;
-  const rawY=dy/JOY_RADIUS;
-  const rawMag=Math.min(1,Math.hypot(rawX,rawY));
-  if(rawMag<0.06){
-    joyX=0;
-    joyY=0;
-  }else{
-    const boosted=Math.min(1,0.48+rawMag*1.15);
-    joyX=(rawX/rawMag)*boosted;
-    joyY=(rawY/rawMag)*boosted;
-  }
+  touchIndicator.style.transform=`translate3d(${p.x-11}px,${p.y-11}px,0)`;
 }
-
-function resetJoystick(){
-  joyX=0;
-  joyY=0;
+function resetTouchControl(){
+  joyX=0;joyY=0;
   joystickActive=false;
   activePointerId=null;
-  stick.style.transform="translate3d(0,0,0)";
-  joystick.classList.remove("active");
+  touchIndicator.classList.remove("active");
 }
 
-/* PC 키보드 */
 window.addEventListener("keydown",e=>{
   if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)){
-    e.preventDefault();
-    keys[e.key]=true;
+    e.preventDefault();keys[e.key]=true;
   }
 });
 window.addEventListener("keyup",e=>keys[e.key]=false);
 
-/*
- 모바일: 게임 화면 아무 곳이나 터치하면
- 1) 게임이 시작되지 않은 상태면 즉시 시작
- 2) 터치 위치에 플로팅 조이스틱 생성
-*/
 canvas.addEventListener("pointerdown",e=>{
   if(e.pointerType==="mouse")return;
   e.preventDefault();
-
-  if(!running) return;
-
-  startFloatingJoystick(e.clientX,e.clientY,e.pointerId);
+  if(!running)return;
+  startTouchControl(e.clientX,e.clientY,e.pointerId);
   try{canvas.setPointerCapture(e.pointerId)}catch(err){}
 },{passive:false});
-
 canvas.addEventListener("pointermove",e=>{
   if(!joystickActive||e.pointerId!==activePointerId)return;
   e.preventDefault();
-  moveFloatingJoystick(e.clientX,e.clientY);
+  moveTouchControl(e.clientX,e.clientY);
 },{passive:false});
-
 canvas.addEventListener("pointerup",e=>{
-  if(e.pointerId===activePointerId)resetJoystick();
+  if(e.pointerId===activePointerId)resetTouchControl();
 },{passive:false});
+canvas.addEventListener("pointercancel",resetTouchControl,{passive:false});
 
-canvas.addEventListener("pointercancel",resetJoystick,{passive:false});
-
-/* PointerEvent 미지원 브라우저에서만 터치 이벤트 사용 */
 if(!window.PointerEvent){
-canvas.addEventListener("touchstart",e=>{
-  if(!e.touches.length)return;
-  e.preventDefault();
-  if(!running)return;
-  const t=e.touches[0];
-  startFloatingJoystick(t.clientX,t.clientY,"touch");
-},{passive:false});
-
-canvas.addEventListener("touchmove",e=>{
-  if(!joystickActive||!e.touches.length)return;
-  e.preventDefault();
-  const t=e.touches[0];
-  moveFloatingJoystick(t.clientX,t.clientY);
-},{passive:false});
-
-canvas.addEventListener("touchend",e=>{
-  e.preventDefault();
-  resetJoystick();
-},{passive:false});
-
-canvas.addEventListener("touchcancel",resetJoystick,{passive:false});
+  canvas.addEventListener("touchstart",e=>{
+    if(!e.touches.length)return;
+    e.preventDefault();
+    if(!running)return;
+    const t=e.touches[0];
+    startTouchControl(t.clientX,t.clientY,"touch");
+  },{passive:false});
+  canvas.addEventListener("touchmove",e=>{
+    if(!joystickActive||!e.touches.length)return;
+    e.preventDefault();
+    const t=e.touches[0];
+    moveTouchControl(t.clientX,t.clientY);
+  },{passive:false});
+  canvas.addEventListener("touchend",e=>{e.preventDefault();resetTouchControl();},{passive:false});
+  canvas.addEventListener("touchcancel",resetTouchControl,{passive:false});
 }
 
 /* 시작 버튼도 click 대신 pointer/touch 계열까지 모두 대응 */
 overlayBtn.addEventListener("click",resetGame);
 overlayBtn.addEventListener("touchend",e=>{e.preventDefault();resetGame();},{passive:false});
 
-document.addEventListener("visibilitychange",()=>{
-  lastFrameTime=performance.now();
-});
-
+document.addEventListener("visibilitychange",()=>{lastFrameTime=performance.now();});
 requestAnimationFrame(loop);
 </script>
 </body>
