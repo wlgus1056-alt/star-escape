@@ -162,7 +162,7 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
 </section>
 </main>
-<footer>Made for a school project ✨ · v1.8 FOLLOW JOYSTICK + SMOOTH</footer>
+<footer>Made for a school project ✨ · v1.8 FOLLOW JOYSTICK + SMOOTH CONTROL</footer>
 
 <script>
 const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
@@ -183,7 +183,7 @@ const player={x:W/2,y:H/2,r:16,speed:IS_MOBILE?410:390};
 
 const joystick=document.getElementById("joystick");
 const stick=document.getElementById("stick");
-let joyX=0,joyY=0,joystickActive=false,activePointerId=null;
+let joyX=0,joyY=0,targetJoyX=0,targetJoyY=0,joystickActive=false,activePointerId=null;
 
 function random(a,b){return Math.random()*(b-a)+a}
 let memoryBest=null;
@@ -251,6 +251,14 @@ function clearGame(now){running=false;finished=true;finishTime=(now-startTime)/1
   gameOverlay.classList.remove("hidden");timerEl.textContent=finishTime.toFixed(2)+"초";const old=safeGetBest();if(!old||finishTime<Number(old)){safeSetBest(finishTime);bestTimeEl.textContent=finishTime.toFixed(2)+"초";messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>"+finishTime.toFixed(2)+"초 — 새로운 최고 기록!"}else{messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>기록: "+finishTime.toFixed(2)+"초"}}
 function update(now,dt){
  if(!running)return;
+ // 모바일 조이스틱 방향 전환을 부드럽게 보간
+ if(IS_MOBILE){
+   const smooth=1-Math.exp(-9*dt);
+   joyX+=(targetJoyX-joyX)*smooth;
+   joyY+=(targetJoyY-joyY)*smooth;
+   if(Math.abs(joyX)<0.008)joyX=0;
+   if(Math.abs(joyY)<0.008)joyY=0;
+ }
  let moveX=0,moveY=0;
  if(keys.ArrowUp)moveY-=1;if(keys.ArrowDown)moveY+=1;if(keys.ArrowLeft)moveX-=1;if(keys.ArrowRight)moveX+=1;
  if(Math.abs(joyX)>0.01||Math.abs(joyY)>0.01){moveX=joyX;moveY=joyY}
@@ -416,6 +424,8 @@ function startSmallJoystick(clientX,clientY,pointerId){
   joystickActive=true;
   joyX=0;
   joyY=0;
+  targetJoyX=0;
+  targetJoyY=0;
 
   joystick.style.transform=`translate3d(${joyBaseX-JOY_HALF}px,${joyBaseY-JOY_HALF}px,0)`;
   joystick.classList.add("active");
@@ -452,19 +462,24 @@ function moveSmallJoystick(clientX,clientY){
   const rawY=dy/JOY_RADIUS;
   const mag=Math.min(1,Math.hypot(rawX,rawY));
 
-  if(mag<0.10){
-    joyX=0;
-    joyY=0;
+  // 중앙 22% 정도는 데드존: 손가락의 아주 작은 흔들림에는 반응하지 않음
+  if(mag<0.22){
+    targetJoyX=0;
+    targetJoyY=0;
   }else{
-    const response=Math.min(1,(mag-0.10)/0.90);
-    joyX=(rawX/mag)*response;
-    joyY=(rawY/mag)*response;
+    // 처음부터 확 꺾이지 않고, 바깥으로 밀수록 점진적으로 강해짐
+    const response=Math.min(1,(mag-0.22)/0.78);
+    const curved=response*response*(3-2*response);
+    targetJoyX=(rawX/mag)*curved;
+    targetJoyY=(rawY/mag)*curved;
   }
 }
 
 function resetSmallJoystick(){
   joyX=0;
   joyY=0;
+  targetJoyX=0;
+  targetJoyY=0;
   joystickActive=false;
   activePointerId=null;
   stick.style.transform="translate3d(0,0,0)";
