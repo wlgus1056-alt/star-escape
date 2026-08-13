@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>STAR ESCAPE</title>
+<style>
+:root{--bg:#080d1c;--panel:#141b35;--text:#f5f7ff;--muted:#aeb8d8;--yellow:#ffdb4d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{overscroll-behavior:none}
+body{margin:0;font-family:Arial,"Noto Sans KR",sans-serif;background:linear-gradient(#080d1c,#111936);color:#f5f7ff;min-height:100vh}
+header{text-align:center;padding:22px 15px 8px}
+header h1{font-size:36px;letter-spacing:2px;margin:0}
+header p{color:#aeb8d8;margin:8px 0}
+nav{display:flex;justify-content:center;gap:10px;margin-bottom:14px}
+nav a{color:white;text-decoration:none;background:#20294b;padding:8px 14px;border-radius:999px;font-size:14px}
+main{width:min(960px,96vw);margin:auto;padding-bottom:24px}
+section{background:rgba(20,27,53,.95);border:1px solid #2d3866;border-radius:18px;padding:18px;margin-bottom:14px}
+.hero{text-align:center}
+.hero strong{color:#ffdb4d}
+button{border:0;border-radius:12px;padding:11px 18px;background:#ffdb4d;font-weight:800;font-size:16px;cursor:pointer}
+.game-wrap{display:grid;grid-template-columns:1fr 225px;gap:14px;align-items:start}
+.canvas-wrap{position:relative;width:100%}
+canvas{width:100%;aspect-ratio:4/3;background:#070b16;border:2px solid #303d70;border-radius:16px;display:block;touch-action:none}
+.side{background:#0f162d;border:1px solid #29355f;border-radius:16px;padding:15px}
+.stat{display:flex;justify-content:space-between;margin:9px 0;padding-bottom:8px;border-bottom:1px solid #29345a}
+.help{font-size:14px;color:#aeb8d8;line-height:1.6}
+.message{margin-top:12px;padding:10px;min-height:56px;background:#171f3d;border-radius:12px;line-height:1.4}
+.record{margin-top:12px;padding:10px;background:#10182f;border-radius:12px;color:#dfe5ff;font-size:14px}
+footer{text-align:center;color:#aeb8d8;padding:10px}
+.joystick{
+  position:absolute;
+  left:0;
+  top:0;
+  width:112px;
+  height:112px;
+  border-radius:50%;
+  background:rgba(255,255,255,.11);
+  border:2px solid rgba(255,255,255,.28);
+  backdrop-filter:blur(4px);
+  touch-action:none;
+  display:none;
+  pointer-events:none;
+  z-index:8;
+  transform:translate(-50%,-50%);
+}
+.joystick.active{display:block}
+.stick{position:absolute;left:50%;top:50%;width:52px;height:52px;margin-left:-26px;margin-top:-26px;border-radius:50%;background:rgba(255,255,255,.78);box-shadow:0 3px 12px rgba(0,0,0,.28);transform:translate(0,0)}
+.mobile-tip{display:none;margin-top:8px;text-align:center;color:#c9d2ef;font-size:13px}
+
+.game-overlay{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:12;
+  pointer-events:none;
+}
+.game-overlay .overlay-card{
+  text-align:center;
+  background:rgba(8,13,28,.78);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:18px;
+  padding:22px 26px;
+  min-width:210px;
+  box-shadow:0 12px 32px rgba(0,0,0,.35);
+  backdrop-filter:blur(5px);
+  pointer-events:auto;
+}
+.game-overlay h3{
+  margin:0 0 12px;
+  font-size:28px;
+}
+.game-overlay p{
+  margin:0 0 14px;
+  color:#d3dcf8;
+  line-height:1.45;
+}
+.overlay-btn{
+  border:0;
+  border-radius:13px;
+  padding:13px 24px;
+  background:#ffdb4d;
+  color:#18203a;
+  font-weight:900;
+  font-size:18px;
+  cursor:pointer;
+}
+.game-overlay.hidden{display:none}
+
+@media(max-width:760px){
+  header h1{font-size:29px}
+  .game-wrap{grid-template-columns:1fr}
+  .side{order:2}
+  .mobile-tip{display:block}
+  section{padding:12px}
+  main{width:98vw}
+}
+</style>
+</head>
+<body>
+<header>
+<h1>⭐ STAR ESCAPE</h1>
+<p>별을 모을수록 더 많은 레이저가 몰려온다!</p>
+</header>
+<main>
+<section class="hero" id="home">
+<h2>360° 레이저 피하기</h2>
+<p>PC에서는 방향키 <strong>↑ ↓ ← →</strong>,<br>모바일에서는 <strong>게임 화면을 터치한 위치에 나타나는 조이스틱</strong>으로 이동합니다.<br><br>게임 시작과 다시하기는 게임 화면 중앙 버튼을 사용합니다.</p>
+
+</section>
+<section id="game">
+<h2>🎮 GAME</h2>
+<div class="game-wrap">
+<div class="canvas-wrap">
+<canvas id="gameCanvas" width="720" height="540"></canvas>
+<div class="game-overlay" id="gameOverlay">
+  <div class="overlay-card">
+    <h3 id="overlayTitle">⭐ STAR ESCAPE</h3>
+    <p id="overlayText">별을 모으고 레이저를 피해보세요!</p>
+    <button class="overlay-btn" id="overlayBtn">게임 시작</button>
+  </div>
+</div>
+<div class="joystick" id="joystick"><div class="stick" id="stick"></div></div>
+<div class="mobile-tip">게임 화면을 터치한 곳에 조이스틱이 나타납니다. 손가락을 끌어서 이동하세요.</div>
+</div>
+<div class="side">
+<div class="stat"><span>⭐ 별</span><b><span id="score">0</span> / 10</b></div>
+<div class="stat"><span>❤️ 목숨</span><b id="lives">❤️❤️❤️</b></div>
+<div class="stat"><span>🔥 난이도</span><b id="level">1</b></div>
+<div class="stat"><span>⏱ 시간</span><b id="timer">0.00초</b></div>
+<div class="help">별을 먹을수록 한 번에 날아오는 레이저 수와 속도가 증가합니다. 레이저는 화면 가장자리의 랜덤 위치에서 다양한 각도로 날아옵니다.</div>
+
+<div class="message" id="message">게임 시작 버튼을 눌러주세요.</div>
+<div class="record">🏆 최고 기록<br><b id="bestTime">아직 기록 없음</b></div>
+</div>
+</div>
+</section>
+<section id="about">
+<h2>💡 ABOUT</h2>
+<p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
+</section>
+</main>
+<footer>Made for a school project ✨ · v1.3</footer>
+
+<script>
+const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
+const W=canvas.width,H=canvas.height;
+const scoreEl=document.getElementById("score"),livesEl=document.getElementById("lives"),levelEl=document.getElementById("level"),timerEl=document.getElementById("timer"),messageEl=document.getElementById("message"),bestTimeEl=document.getElementById("bestTime");
+const gameOverlay=document.getElementById("gameOverlay");
+const overlayTitle=document.getElementById("overlayTitle");
+const overlayText=document.getElementById("overlayText");
+const overlayBtn=document.getElementById("overlayBtn");
+
+const keys={};
+let running=false,finished=false,score=0,lives=3,level=1,stars=[],lasers=[],lastVolley=0,startTime=0,finishTime=0,invincibleUntil=0;
+const player={x:W/2,y:H/2,r:16,speed:390};
+
+const joystick=document.getElementById("joystick"),stick=document.getElementById("stick");
+let joyX=0,joyY=0,joystickActive=false,activePointerId=null;
+
+function random(a,b){return Math.random()*(b-a)+a}
+let memoryBest=null;
+function safeGetBest(){
+  try { return localStorage.getItem("starEscapeBestMobile"); }
+  catch(e) { return memoryBest; }
+}
+function safeSetBest(v){
+  memoryBest=String(v);
+  try { localStorage.setItem("starEscapeBestMobile",String(v)); } catch(e) {}
+}
+function loadBest(){
+  const b=safeGetBest();
+  if(b) bestTimeEl.textContent=Number(b).toFixed(2)+"초";
+}
+loadBest();
+function updateUI(){scoreEl.textContent=score;livesEl.textContent="❤️".repeat(lives)+"🖤".repeat(3-lives);levelEl.textContent=level}
+function spawnStar(){const p=55;let s;do{s={x:random(p,W-p),y:random(p,H-p),r:10}}while(Math.hypot(s.x-player.x,s.y-player.y)<110);stars=[s]}
+function resetGame(){gameOverlay.classList.add("hidden");score=0;lives=3;level=1;stars=[];lasers=[];player.x=W/2;player.y=H/2;running=true;finished=false;startTime=performance.now();finishTime=0;lastVolley=startTime;invincibleUntil=0;spawnStar();updateUI();messageEl.textContent="⭐ 별 10개를 모으세요!";document.getElementById("game").scrollIntoView({behavior:"smooth"})}
+function circleHit(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r}
+function rectCircleHit(rect,c){const cx=Math.max(rect.x-rect.w/2,Math.min(c.x,rect.x+rect.w/2)),cy=Math.max(rect.y-rect.h/2,Math.min(c.y,rect.y+rect.h/2)),dx=c.x-cx,dy=c.y-cy;return dx*dx+dy*dy<c.r*c.r}
+function randomEdgePoint(){const edge=Math.floor(Math.random()*4);if(edge===0)return{x:random(0,W),y:-35};if(edge===1)return{x:W+35,y:random(0,H)};if(edge===2)return{x:random(0,W),y:H+35};return{x:-35,y:random(0,H)}}
+function spawnLaser(){const start=randomEdgePoint(),targetX=player.x+random(-165,165),targetY=player.y+random(-165,165),dx=targetX-start.x,dy=targetY-start.y,len=Math.hypot(dx,dy)||1,speed=310+(level-1)*26,vx=dx/len*speed,vy=dy/len*speed;lasers.push({x:start.x,y:start.y,vx,vy,w:42,h:8,angle:Math.atan2(vy,vx)})}
+function fireVolley(){const count=Math.min(1+Math.floor(score/2),6);for(let i=0;i<count;i++)setTimeout(()=>{if(running)spawnLaser()},i*90)}
+function clearGame(now){running=false;finished=true;finishTime=(now-startTime)/1000;
+  overlayTitle.textContent="🏆 MISSION CLEAR!";
+  overlayText.textContent="기록 "+finishTime.toFixed(2)+"초";
+  overlayBtn.textContent="다시하기";
+  gameOverlay.classList.remove("hidden");timerEl.textContent=finishTime.toFixed(2)+"초";const old=safeGetBest();if(!old||finishTime<Number(old)){safeSetBest(finishTime);bestTimeEl.textContent=finishTime.toFixed(2)+"초";messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>"+finishTime.toFixed(2)+"초 — 새로운 최고 기록!"}else{messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>기록: "+finishTime.toFixed(2)+"초"}}
+function update(now,dt){
+ if(!running)return;
+ let moveX=0,moveY=0;
+ if(keys.ArrowUp)moveY-=1;if(keys.ArrowDown)moveY+=1;if(keys.ArrowLeft)moveX-=1;if(keys.ArrowRight)moveX+=1;
+ if(Math.abs(joyX)>0.01||Math.abs(joyY)>0.01){moveX=joyX;moveY=joyY}
+ const m=Math.hypot(moveX,moveY);if(m>1){moveX/=m;moveY/=m}
+ player.x+=moveX*player.speed*dt;player.y+=moveY*player.speed*dt;
+ player.x=Math.max(player.r,Math.min(W-player.r,player.x));player.y=Math.max(player.r,Math.min(H-player.r,player.y));
+ timerEl.textContent=((now-startTime)/1000).toFixed(2)+"초";
+ if(stars.length&&circleHit(player,stars[0])){
+   score++;level=score+1;
+   if(score>=10){updateUI();clearGame(now);return}
+   spawnStar();fireVolley();messageEl.textContent="⭐ 별 획득! 레이저 공격이 더 강해졌습니다.";updateUI()
+ }
+ const interval=Math.max(520,1450-score*75);
+ if(now-lastVolley>interval){fireVolley();lastVolley=now}
+ for(let i=lasers.length-1;i>=0;i--){
+   const l=lasers[i];l.x+=l.vx*dt;l.y+=l.vy*dt;
+   if(l.x<-130||l.x>W+130||l.y<-130||l.y>H+130){lasers.splice(i,1);continue}
+   if(now>invincibleUntil&&rectCircleHit(l,player)){
+     lives--;invincibleUntil=now+1100;lasers.splice(i,1);updateUI();
+     if(lives<=0){
+       running=false;finished=true;finishTime=(now-startTime)/1000;
+       messageEl.innerHTML="💀 <b>GAME OVER</b><br>별 "+score+"개를 모았습니다.";
+       overlayTitle.textContent="💀 GAME OVER";
+       overlayText.textContent="별 "+score+"개를 모았습니다.";
+       overlayBtn.textContent="다시하기";
+       gameOverlay.classList.remove("hidden");
+     }else messageEl.textContent="💥 레이저에 맞았습니다!"
+   }
+ }
+}
+function drawStar(x,y,r){ctx.save();ctx.translate(x,y);ctx.fillStyle="#ffdb4d";ctx.shadowBlur=18;ctx.shadowColor="#ffdb4d";ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2===0?r:r*.45,px=Math.cos(a)*rr,py=Math.sin(a)*rr;i===0?ctx.moveTo(px,py):ctx.lineTo(px,py)}ctx.closePath();ctx.fill();ctx.restore()}
+function draw(){
+ ctx.clearRect(0,0,W,H);ctx.fillStyle="#070b16";ctx.fillRect(0,0,W,H);
+ ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<45;i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
+ if(stars.length)drawStar(stars[0].x,stars[0].y,14);
+ lasers.forEach(l=>{ctx.save();ctx.translate(l.x,l.y);ctx.rotate(l.angle);ctx.shadowBlur=18;ctx.shadowColor="#ff254f";ctx.fillStyle="#ff4163";ctx.fillRect(-l.w/2,-l.h/2,l.w,l.h);ctx.fillStyle="#fff";ctx.fillRect(-l.w/2+7,-1,l.w-14,2);ctx.restore()});
+ const now=performance.now();
+ if(now>=invincibleUntil||Math.floor(now/120)%2===0){
+   ctx.save();ctx.shadowBlur=15;ctx.shadowColor="#6fe6a4";ctx.fillStyle="#6fe6a4";ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();ctx.restore();
+   ctx.fillStyle="#092317";ctx.beginPath();ctx.arc(player.x-5,player.y-3,2,0,Math.PI*2);ctx.arc(player.x+5,player.y-3,2,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#092317";ctx.lineWidth=2;ctx.beginPath();ctx.arc(player.x,player.y+3,6,0,Math.PI);ctx.stroke()
+ }
+ if(!running){ctx.fillStyle="rgba(0,0,0,.48)";ctx.fillRect(0,0,W,H);ctx.fillStyle="#fff";ctx.textAlign="center";if(finished){ctx.font="bold 40px Arial";ctx.fillText(lives>0?"MISSION CLEAR!":"GAME OVER",W/2,H/2-18);ctx.font="19px Arial";ctx.fillText(lives>0?"기록 "+finishTime.toFixed(2)+"초":"다시 도전해보세요!",W/2,H/2+22)}else{ctx.font="bold 36px Arial";ctx.fillText("STAR ESCAPE",W/2,H/2-15);ctx.font="18px Arial";ctx.fillText("게임 시작 버튼을 눌러주세요.",W/2,H/2+25)}}
+}
+let lastFrameTime=performance.now();
+function loop(now){
+  let dt=(now-lastFrameTime)/1000;
+  lastFrameTime=now;
+  dt=Math.min(dt,0.05);
+  update(now,dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener("keydown",e=>{if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)){e.preventDefault();keys[e.key]=true}});
+window.addEventListener("keyup",e=>keys[e.key]=false);
+
+function getCanvasLocal(clientX,clientY){
+  const rect=canvas.getBoundingClientRect();
+  return {
+    x:clientX-rect.left,
+    y:clientY-rect.top,
+    rect
+  };
+}
+
+let joyBaseX=0,joyBaseY=0;
+const JOY_RADIUS=42;
+
+/* 터치한 위치에 조이스틱을 생성한다. */
+function startFloatingJoystick(clientX,clientY,pointerId){
+  const p=getCanvasLocal(clientX,clientY);
+  joyBaseX=p.x;
+  joyBaseY=p.y;
+  activePointerId=pointerId;
+  joystickActive=true;
+
+  joystick.style.left=joyBaseX+"px";
+  joystick.style.top=joyBaseY+"px";
+  joystick.classList.add("active");
+  stick.style.transform="translate(0px,0px)";
+  joyX=0;
+  joyY=0;
+}
+
+/*
+ 손가락이 조이스틱 반경을 넘으면 중심도 조금씩 같이 따라간다.
+ 그래서 고정된 패드가 아니라 손가락 이동 동선을 따라가는
+ '플로팅 조이스틱'처럼 움직인다.
+*/
+function moveFloatingJoystick(clientX,clientY){
+  if(!joystickActive)return;
+
+  const p=getCanvasLocal(clientX,clientY);
+  let dx=p.x-joyBaseX;
+  let dy=p.y-joyBaseY;
+  let dist=Math.hypot(dx,dy);
+
+  if(dist>JOY_RADIUS){
+    const overflow=dist-JOY_RADIUS;
+    const nx=dx/dist;
+    const ny=dy/dist;
+
+    // 베이스가 손가락을 부드럽게 따라오도록 이동
+    joyBaseX+=nx*overflow*0.28;
+    joyBaseY+=ny*overflow*0.28;
+
+    joystick.style.left=joyBaseX+"px";
+    joystick.style.top=joyBaseY+"px";
+
+    dx=p.x-joyBaseX;
+    dy=p.y-joyBaseY;
+    dist=Math.hypot(dx,dy);
+  }
+
+  if(dist>JOY_RADIUS){
+    dx=dx/dist*JOY_RADIUS;
+    dy=dy/dist*JOY_RADIUS;
+  }
+
+  stick.style.transform=`translate(${dx}px,${dy}px)`;
+  const rawX=dx/JOY_RADIUS;
+  const rawY=dy/JOY_RADIUS;
+  const rawMag=Math.min(1,Math.hypot(rawX,rawY));
+  if(rawMag<0.06){
+    joyX=0;
+    joyY=0;
+  }else{
+    const boosted=Math.min(1,0.48+rawMag*1.15);
+    joyX=(rawX/rawMag)*boosted;
+    joyY=(rawY/rawMag)*boosted;
+  }
+}
+
+function resetJoystick(){
+  joyX=0;
+  joyY=0;
+  joystickActive=false;
+  activePointerId=null;
+  stick.style.transform="translate(0px,0px)";
+  joystick.classList.remove("active");
+}
+
+/* PC 키보드 */
+window.addEventListener("keydown",e=>{
+  if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)){
+    e.preventDefault();
+    keys[e.key]=true;
+  }
+});
+window.addEventListener("keyup",e=>keys[e.key]=false);
+
+/*
+ 모바일: 게임 화면 아무 곳이나 터치하면
+ 1) 게임이 시작되지 않은 상태면 즉시 시작
+ 2) 터치 위치에 플로팅 조이스틱 생성
+*/
+canvas.addEventListener("pointerdown",e=>{
+  if(e.pointerType==="mouse")return;
+  e.preventDefault();
+
+  if(!running) return;
+
+  startFloatingJoystick(e.clientX,e.clientY,e.pointerId);
+  try{canvas.setPointerCapture(e.pointerId)}catch(err){}
+},{passive:false});
+
+canvas.addEventListener("pointermove",e=>{
+  if(!joystickActive||e.pointerId!==activePointerId)return;
+  e.preventDefault();
+  moveFloatingJoystick(e.clientX,e.clientY);
+},{passive:false});
+
+canvas.addEventListener("pointerup",e=>{
+  if(e.pointerId===activePointerId)resetJoystick();
+},{passive:false});
+
+canvas.addEventListener("pointercancel",resetJoystick,{passive:false});
+
+/* iOS Safari에서 PointerEvent 처리가 제한될 때를 위한 터치 보조 */
+canvas.addEventListener("touchstart",e=>{
+  if(!e.touches.length)return;
+  e.preventDefault();
+  if(!running)return;
+  const t=e.touches[0];
+  startFloatingJoystick(t.clientX,t.clientY,"touch");
+},{passive:false});
+
+canvas.addEventListener("touchmove",e=>{
+  if(!joystickActive||!e.touches.length)return;
+  e.preventDefault();
+  const t=e.touches[0];
+  moveFloatingJoystick(t.clientX,t.clientY);
+},{passive:false});
+
+canvas.addEventListener("touchend",e=>{
+  e.preventDefault();
+  resetJoystick();
+},{passive:false});
+
+canvas.addEventListener("touchcancel",resetJoystick,{passive:false});
+
+/* 시작 버튼도 click 대신 pointer/touch 계열까지 모두 대응 */
+overlayBtn.addEventListener("click",resetGame);
+overlayBtn.addEventListener("touchend",e=>{e.preventDefault();resetGame();},{passive:false});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
