@@ -74,22 +74,40 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 .game-overlay.hidden{display:none}
 
 
-.touch-indicator{
+
+
+
+.joystick{
   position:absolute;
   left:0;
   top:0;
-  width:22px;
-  height:22px;
+  width:64px;
+  height:64px;
   border-radius:50%;
-  border:2px solid rgba(255,255,255,.72);
-  background:rgba(255,255,255,.10);
+  background:rgba(255,255,255,.08);
+  border:1.5px solid rgba(255,255,255,.28);
   pointer-events:none;
   z-index:8;
   display:none;
   transform:translate3d(-9999px,-9999px,0);
   will-change:transform;
 }
-.touch-indicator.active{display:block}
+.joystick.active{display:block}
+.stick{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:28px;
+  height:28px;
+  margin-left:-14px;
+  margin-top:-14px;
+  border-radius:50%;
+  background:rgba(255,255,255,.80);
+  border:1px solid rgba(255,255,255,.45);
+  box-shadow:none;
+  transform:translate3d(0,0,0);
+  will-change:transform;
+}
 
 @media(max-width:760px){
   header h1{font-size:29px}
@@ -124,8 +142,8 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
     <button class="overlay-btn" id="overlayBtn">게임 시작</button>
   </div>
 </div>
-<div class="touch-indicator" id="touchIndicator"></div>
-<div class="mobile-tip">게임 화면을 터치하고 손가락을 끌면 그 방향으로 이동합니다.</div>
+<div class="joystick" id="joystick"><div class="stick" id="stick"></div></div>
+<div class="mobile-tip">게임 화면을 터치하면 작은 조이스틱이 나타납니다. 스틱을 밀어 이동하세요.</div>
 </div>
 <div class="side">
 <div class="stat"><span>⭐ 별</span><b><span id="score">0</span> / 10</b></div>
@@ -144,7 +162,7 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
 </section>
 </main>
-<footer>Made for a school project ✨ · v1.9 SMOOTH</footer>
+<footer>Made for a school project ✨ · v1.9 SMALL JOYSTICK SMOOTH</footer>
 
 <script>
 const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
@@ -163,7 +181,8 @@ const keys={};
 let running=false,finished=false,score=0,lives=3,level=1,stars=[],lasers=[],lastVolley=0,startTime=0,finishTime=0,invincibleUntil=0,timerStarted=false;
 const player={x:W/2,y:H/2,r:16,speed:IS_MOBILE?410:390};
 
-const touchIndicator=document.getElementById("touchIndicator");
+const joystick=document.getElementById("joystick");
+const stick=document.getElementById("stick");
 let joyX=0,joyY=0,joystickActive=false,activePointerId=null;
 
 function random(a,b){return Math.random()*(b-a)+a}
@@ -384,83 +403,118 @@ function getCanvasLocal(clientX,clientY){
   const rect=canvas.getBoundingClientRect();
   return {x:clientX-rect.left,y:clientY-rect.top,rect};
 }
-let touchStartX=0,touchStartY=0;
-const TOUCH_RANGE=46;
 
-function startTouchControl(clientX,clientY,pointerId){
+let joyBaseX=0,joyBaseY=0;
+const JOY_RADIUS=23;
+const JOY_HALF=32;
+
+function startSmallJoystick(clientX,clientY,pointerId){
   const p=getCanvasLocal(clientX,clientY);
-  touchStartX=p.x;
-  touchStartY=p.y;
+  joyBaseX=p.x;
+  joyBaseY=p.y;
   activePointerId=pointerId;
   joystickActive=true;
-  joyX=0; joyY=0;
-  touchIndicator.style.transform=`translate3d(${p.x-11}px,${p.y-11}px,0)`;
-  touchIndicator.classList.add("active");
-}
-function moveTouchControl(clientX,clientY){
-  if(!joystickActive)return;
-  const p=getCanvasLocal(clientX,clientY);
-  let dx=p.x-touchStartX,dy=p.y-touchStartY;
-  const dist=Math.hypot(dx,dy);
-  if(dist>TOUCH_RANGE){
-    dx=dx/dist*TOUCH_RANGE;
-    dy=dy/dist*TOUCH_RANGE;
-  }
-  const mag=Math.min(1,Math.hypot(dx,dy)/TOUCH_RANGE);
-  if(mag<0.05){joyX=0;joyY=0;}
-  else{
-    joyX=(dx/TOUCH_RANGE);
-    joyY=(dy/TOUCH_RANGE);
-  }
-  touchIndicator.style.transform=`translate3d(${p.x-11}px,${p.y-11}px,0)`;
-}
-function resetTouchControl(){
-  joyX=0;joyY=0;
-  joystickActive=false;
-  activePointerId=null;
-  touchIndicator.classList.remove("active");
+  joyX=0;
+  joyY=0;
+
+  joystick.style.transform=`translate3d(${joyBaseX-JOY_HALF}px,${joyBaseY-JOY_HALF}px,0)`;
+  joystick.classList.add("active");
+  stick.style.transform="translate3d(0,0,0)";
 }
 
+function moveSmallJoystick(clientX,clientY){
+  if(!joystickActive)return;
+
+  const p=getCanvasLocal(clientX,clientY);
+  let dx=p.x-joyBaseX;
+  let dy=p.y-joyBaseY;
+  const dist=Math.hypot(dx,dy);
+
+  if(dist>JOY_RADIUS){
+    dx=dx/dist*JOY_RADIUS;
+    dy=dy/dist*JOY_RADIUS;
+  }
+
+  stick.style.transform=`translate3d(${dx}px,${dy}px,0)`;
+
+  const rawX=dx/JOY_RADIUS;
+  const rawY=dy/JOY_RADIUS;
+  const mag=Math.min(1,Math.hypot(rawX,rawY));
+
+  if(mag<0.10){
+    joyX=0;
+    joyY=0;
+  }else{
+    // 작은 조이스틱에서도 미세 조절이 되면서 끝까지 밀면 최대 속도
+    const response=Math.min(1,(mag-0.10)/0.90);
+    joyX=(rawX/mag)*response;
+    joyY=(rawY/mag)*response;
+  }
+}
+
+function resetSmallJoystick(){
+  joyX=0;
+  joyY=0;
+  joystickActive=false;
+  activePointerId=null;
+  stick.style.transform="translate3d(0,0,0)";
+  joystick.classList.remove("active");
+}
+
+/* PC 키보드 */
 window.addEventListener("keydown",e=>{
   if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)){
-    e.preventDefault();keys[e.key]=true;
+    e.preventDefault();
+    keys[e.key]=true;
   }
 });
 window.addEventListener("keyup",e=>keys[e.key]=false);
 
+/* 모바일 작은 플로팅 조이스틱 */
 canvas.addEventListener("pointerdown",e=>{
   if(e.pointerType==="mouse")return;
   e.preventDefault();
   if(!running)return;
-  startTouchControl(e.clientX,e.clientY,e.pointerId);
+
+  startSmallJoystick(e.clientX,e.clientY,e.pointerId);
   try{canvas.setPointerCapture(e.pointerId)}catch(err){}
 },{passive:false});
+
 canvas.addEventListener("pointermove",e=>{
   if(!joystickActive||e.pointerId!==activePointerId)return;
   e.preventDefault();
-  moveTouchControl(e.clientX,e.clientY);
+  moveSmallJoystick(e.clientX,e.clientY);
 },{passive:false});
-canvas.addEventListener("pointerup",e=>{
-  if(e.pointerId===activePointerId)resetTouchControl();
-},{passive:false});
-canvas.addEventListener("pointercancel",resetTouchControl,{passive:false});
 
+canvas.addEventListener("pointerup",e=>{
+  if(e.pointerId===activePointerId)resetSmallJoystick();
+},{passive:false});
+
+canvas.addEventListener("pointercancel",resetSmallJoystick,{passive:false});
+
+/* PointerEvent 미지원 브라우저 */
 if(!window.PointerEvent){
   canvas.addEventListener("touchstart",e=>{
     if(!e.touches.length)return;
     e.preventDefault();
     if(!running)return;
     const t=e.touches[0];
-    startTouchControl(t.clientX,t.clientY,"touch");
+    startSmallJoystick(t.clientX,t.clientY,"touch");
   },{passive:false});
+
   canvas.addEventListener("touchmove",e=>{
     if(!joystickActive||!e.touches.length)return;
     e.preventDefault();
     const t=e.touches[0];
-    moveTouchControl(t.clientX,t.clientY);
+    moveSmallJoystick(t.clientX,t.clientY);
   },{passive:false});
-  canvas.addEventListener("touchend",e=>{e.preventDefault();resetTouchControl();},{passive:false});
-  canvas.addEventListener("touchcancel",resetTouchControl,{passive:false});
+
+  canvas.addEventListener("touchend",e=>{
+    e.preventDefault();
+    resetSmallJoystick();
+  },{passive:false});
+
+  canvas.addEventListener("touchcancel",resetSmallJoystick,{passive:false});
 }
 
 /* 시작 버튼도 click 대신 pointer/touch 계열까지 모두 대응 */
