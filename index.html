@@ -130,7 +130,7 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <div class="stat"><span>❤️ 목숨</span><b id="lives">❤️❤️❤️</b></div>
 <div class="stat"><span>🔥 난이도</span><b id="level">1</b></div>
 <div class="stat"><span>⏱ 시간</span><b id="timer">0.00초</b></div>
-<div class="help">별을 먹을수록 한 번에 날아오는 레이저 수와 속도가 증가합니다. 레이저는 화면 가장자리의 랜덤 위치에서 다양한 각도로 날아옵니다.</div>
+<div class="help">별을 먹을수록 레이저 수와 속도가 증가합니다. ⭐ 4개부터 보라색 유도 레이저가 등장하며 잠시 동안 플레이어를 추적합니다.</div>
 
 <div class="message" id="message">게임 시작 버튼을 눌러주세요.</div>
 <div class="record">🏆 최고 기록<br><b id="bestTime">아직 기록 없음</b></div>
@@ -142,7 +142,7 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
 </section>
 </main>
-<footer>Made for a school project ✨ · v1.4 MOBILE</footer>
+<footer>Made for a school project ✨ · v1.5 HOMING</footer>
 
 <script>
 const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
@@ -182,14 +182,41 @@ function resetGame(){gameOverlay.classList.add("hidden");score=0;lives=3;level=1
 function circleHit(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r}
 function rectCircleHit(rect,c){const cx=Math.max(rect.x-rect.w/2,Math.min(c.x,rect.x+rect.w/2)),cy=Math.max(rect.y-rect.h/2,Math.min(c.y,rect.y+rect.h/2)),dx=c.x-cx,dy=c.y-cy;return dx*dx+dy*dy<c.r*c.r}
 function randomEdgePoint(){const edge=Math.floor(Math.random()*4);if(edge===0)return{x:random(0,W),y:-35};if(edge===1)return{x:W+35,y:random(0,H)};if(edge===2)return{x:random(0,W),y:H+35};return{x:-35,y:random(0,H)}}
-function spawnLaser(){const start=randomEdgePoint(),targetX=player.x+random(-165,165),targetY=player.y+random(-165,165),dx=targetX-start.x,dy=targetY-start.y,len=Math.hypot(dx,dy)||1,speed=(IS_MOBILE?330:310)+(level-1)*26,vx=dx/len*speed,vy=dy/len*speed;lasers.push({x:start.x,y:start.y,vx,vy,w:42,h:8,angle:Math.atan2(vy,vx)})}
+function spawnLaser(forceHoming=false){
+  const start=randomEdgePoint();
+  const targetX=player.x+random(-165,165);
+  const targetY=player.y+random(-165,165);
+  const dx=targetX-start.x,dy=targetY-start.y;
+  const len=Math.hypot(dx,dy)||1;
+
+  // 별 4개부터 유도 레이저 등장.
+  // 후반으로 갈수록 확률이 높아지며, 한 번의 공격에 너무 많이 나오지 않도록 제한.
+  const homingChance=score<4?0:Math.min(0.16+(score-4)*0.055,0.43);
+  const homing=forceHoming || (score>=4 && Math.random()<homingChance);
+
+  const speed=((IS_MOBILE?330:310)+(level-1)*26)*(homing?0.88:1);
+  const vx=dx/len*speed,vy=dy/len*speed;
+
+  lasers.push({
+    x:start.x,y:start.y,vx,vy,
+    w:homing?48:42,
+    h:homing?10:8,
+    angle:Math.atan2(vy,vx),
+    homing,
+    born:performance.now(),
+    homingFor:homing?1650:0,
+    turnRate:homing?2.25:0
+  });
+}
+
 function fireVolley(){
   const count=Math.min(1+Math.floor(score/2),IS_MOBILE?5:6);
   for(let i=0;i<count;i++){
     setTimeout(()=>{
       if(!running)return;
       if(IS_MOBILE && lasers.length>=18) lasers.shift();
-      spawnLaser();
+      // 별 7개부터는 한 발 정도는 확실하게 추적형이 섞여 후반 난이도를 올림
+      spawnLaser(score>=7 && i===count-1);
     },i*90);
   }
 }
@@ -215,7 +242,27 @@ function update(now,dt){
  const interval=Math.max(520,1450-score*75);
  if(now-lastVolley>interval){fireVolley();lastVolley=now}
  for(let i=lasers.length-1;i>=0;i--){
-   const l=lasers[i];l.x+=l.vx*dt;l.y+=l.vy*dt;
+   const l=lasers[i];
+
+   // 유도 레이저는 처음 약 1.65초 동안 플레이어 쪽으로 부드럽게 방향을 수정한다.
+   if(l.homing && now-l.born<l.homingFor){
+     const desired=Math.atan2(player.y-l.y,player.x-l.x);
+     let current=Math.atan2(l.vy,l.vx);
+     let diff=desired-current;
+     while(diff>Math.PI)diff-=Math.PI*2;
+     while(diff<-Math.PI)diff+=Math.PI*2;
+
+     const maxTurn=l.turnRate*dt;
+     current+=Math.max(-maxTurn,Math.min(maxTurn,diff));
+
+     const sp=Math.hypot(l.vx,l.vy);
+     l.vx=Math.cos(current)*sp;
+     l.vy=Math.sin(current)*sp;
+     l.angle=current;
+   }
+
+   l.x+=l.vx*dt;
+   l.y+=l.vy*dt;
    if(l.x<-130||l.x>W+130||l.y<-130||l.y>H+130){lasers.splice(i,1);continue}
    if(now>invincibleUntil&&rectCircleHit(l,player)){
      lives--;invincibleUntil=now+1100;lasers.splice(i,1);updateUI();
@@ -235,7 +282,29 @@ function draw(){
  ctx.clearRect(0,0,W,H);ctx.fillStyle="#070b16";ctx.fillRect(0,0,W,H);
  ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<(IS_MOBILE?18:45);i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
  if(stars.length)drawStar(stars[0].x,stars[0].y,14);
- lasers.forEach(l=>{ctx.save();ctx.translate(l.x,l.y);ctx.rotate(l.angle);if(!IS_MOBILE){ctx.shadowBlur=18;ctx.shadowColor="#ff254f";}ctx.fillStyle="#ff4163";ctx.fillRect(-l.w/2,-l.h/2,l.w,l.h);ctx.fillStyle="#fff";ctx.fillRect(-l.w/2+7,-1,l.w-14,2);ctx.restore()});
+ lasers.forEach(l=>{
+   ctx.save();
+   ctx.translate(l.x,l.y);
+   ctx.rotate(l.angle);
+
+   if(l.homing){
+     if(!IS_MOBILE){ctx.shadowBlur=16;ctx.shadowColor="#d85cff";}
+     ctx.fillStyle="#d85cff";
+     ctx.fillRect(-l.w/2,-l.h/2,l.w,l.h);
+     ctx.fillStyle="#fff";
+     ctx.fillRect(-l.w/2+8,-1.5,l.w-16,3);
+     // 방향을 알아보기 쉬운 작은 꼬리
+     ctx.fillStyle="rgba(216,92,255,.45)";
+     ctx.fillRect(-l.w/2-15,-2,15,4);
+   }else{
+     if(!IS_MOBILE){ctx.shadowBlur=18;ctx.shadowColor="#ff254f";}
+     ctx.fillStyle="#ff4163";
+     ctx.fillRect(-l.w/2,-l.h/2,l.w,l.h);
+     ctx.fillStyle="#fff";
+     ctx.fillRect(-l.w/2+7,-1,l.w-14,2);
+   }
+   ctx.restore()
+ });
  const now=performance.now();
  if(now>=invincibleUntil||Math.floor(now/120)%2===0){
    ctx.save();if(!IS_MOBILE){ctx.shadowBlur=15;ctx.shadowColor="#6fe6a4";}ctx.fillStyle="#6fe6a4";ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();ctx.restore();
