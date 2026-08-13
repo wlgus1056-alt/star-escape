@@ -32,12 +32,11 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
   position:absolute;
   left:0;
   top:0;
-  width:112px;
-  height:112px;
+  width:76px;
+  height:76px;
   border-radius:50%;
-  background:rgba(255,255,255,.11);
-  border:2px solid rgba(255,255,255,.28);
-  backdrop-filter:blur(4px);
+  background:rgba(255,255,255,.10);
+  border:1.5px solid rgba(255,255,255,.28);
   touch-action:none;
   display:none;
   pointer-events:none;
@@ -45,7 +44,19 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
   transform:translate(-50%,-50%);
 }
 .joystick.active{display:block}
-.stick{position:absolute;left:50%;top:50%;width:52px;height:52px;margin-left:-26px;margin-top:-26px;border-radius:50%;background:rgba(255,255,255,.78);box-shadow:0 3px 12px rgba(0,0,0,.28);transform:translate(0,0)}
+.stick{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:32px;
+  height:32px;
+  margin-left:-16px;
+  margin-top:-16px;
+  border-radius:50%;
+  background:rgba(255,255,255,.82);
+  box-shadow:0 2px 8px rgba(0,0,0,.28);
+  transform:translate(0,0);
+}
 .mobile-tip{display:none;margin-top:8px;text-align:center;color:#c9d2ef;font-size:13px}
 
 .game-overlay{
@@ -134,6 +145,10 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 
 <div class="message" id="message">게임 시작 버튼을 눌러주세요.</div>
 <div class="record">🏆 최고 기록<br><b id="bestTime">아직 기록 없음</b></div>
+<div class="record">
+  🏅 이 기기 TOP 10
+  <div id="localRanking" style="margin-top:8px;line-height:1.7">아직 기록 없음</div>
+</div>
 </div>
 </div>
 </section>
@@ -142,14 +157,14 @@ footer{text-align:center;color:#aeb8d8;padding:10px}
 <p>HTML, CSS, JavaScript로 만든 웹 게임입니다. PC와 모바일에서 모두 플레이할 수 있도록 키보드 조작과 터치 조이스틱을 함께 지원합니다.</p>
 </section>
 </main>
-<footer>Made for a school project ✨ · v1.6 FACE</footer>
+<footer>Made for a school project ✨ · v1.7.1 CLEAN</footer>
 
 <script>
 const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
 const IS_MOBILE = matchMedia("(max-width: 760px)").matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const W=canvas.width,H=canvas.height;
 const playerFace=new Image();
-playerFace.src="player-face.png";
+playerFace.src="./player-face.png";
 
 const scoreEl=document.getElementById("score"),livesEl=document.getElementById("lives"),levelEl=document.getElementById("level"),timerEl=document.getElementById("timer"),messageEl=document.getElementById("message"),bestTimeEl=document.getElementById("bestTime");
 const gameOverlay=document.getElementById("gameOverlay");
@@ -163,6 +178,33 @@ const player={x:W/2,y:H/2,r:16,speed:IS_MOBILE?410:390};
 
 const joystick=document.getElementById("joystick"),stick=document.getElementById("stick");
 let joyX=0,joyY=0,joystickActive=false,activePointerId=null;
+
+
+const localRankingEl=document.getElementById("localRanking");
+function getLocalRanking(){
+  try{
+    const raw=localStorage.getItem("starEscapeLocalTop10");
+    return raw?JSON.parse(raw):[];
+  }catch(e){ return []; }
+}
+function renderLocalRanking(){
+  if(!localRankingEl)return;
+  const arr=getLocalRanking();
+  if(!arr.length){
+    localRankingEl.textContent="아직 기록 없음";
+    return;
+  }
+  localRankingEl.innerHTML=arr.map((t,i)=>(i+1)+"위 · "+Number(t).toFixed(2)+"초").join("<br>");
+}
+function saveLocalRanking(time){
+  const arr=getLocalRanking();
+  arr.push(Number(time));
+  arr.sort((a,b)=>a-b);
+  const top=arr.slice(0,10);
+  try{localStorage.setItem("starEscapeLocalTop10",JSON.stringify(top));}catch(e){}
+  renderLocalRanking();
+}
+renderLocalRanking();
 
 function random(a,b){return Math.random()*(b-a)+a}
 let memoryBest=null;
@@ -181,7 +223,24 @@ function loadBest(){
 loadBest();
 function updateUI(){scoreEl.textContent=score;livesEl.textContent="❤️".repeat(lives)+"🖤".repeat(3-lives);levelEl.textContent=level}
 function spawnStar(){const p=55;let s;do{s={x:random(p,W-p),y:random(p,H-p),r:10}}while(Math.hypot(s.x-player.x,s.y-player.y)<110);stars=[s]}
-function resetGame(){gameOverlay.classList.add("hidden");score=0;lives=3;level=1;stars=[];lasers=[];player.x=W/2;player.y=H/2;running=true;finished=false;timerStarted=false;startTime=0;finishTime=0;lastVolley=performance.now();invincibleUntil=0;timerEl.textContent="0.00초";spawnStar();updateUI();messageEl.textContent="⭐ 캐릭터를 움직이는 순간부터 시간이 시작됩니다!";document.getElementById("game").scrollIntoView({behavior:"smooth"})}
+function resetGame(){
+  gameOverlay.classList.add("hidden");
+  score=0;
+  lives=3;
+  level=1;
+  stars=[];
+  lasers=[];
+  player.x=W/2;
+  player.y=H/2;
+  running=true;
+  finished=false;
+  timerStarted=false;
+  startTime=0;
+  finishTime=0;
+  lastVolley=performance.now();
+  invincibleUntil=0;
+  timerEl.textContent="0.00초";
+  spawnStar();updateUI();messageEl.textContent="⭐ 캐릭터를 움직이는 순간부터 시간이 시작됩니다!";document.getElementById("game").scrollIntoView({behavior:"smooth"})}
 function circleHit(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r}
 function rectCircleHit(rect,c){const cx=Math.max(rect.x-rect.w/2,Math.min(c.x,rect.x+rect.w/2)),cy=Math.max(rect.y-rect.h/2,Math.min(c.y,rect.y+rect.h/2)),dx=c.x-cx,dy=c.y-cy;return dx*dx+dy*dy<c.r*c.r}
 function randomEdgePoint(){const edge=Math.floor(Math.random()*4);if(edge===0)return{x:random(0,W),y:-35};if(edge===1)return{x:W+35,y:random(0,H)};if(edge===2)return{x:random(0,W),y:H+35};return{x:-35,y:random(0,H)}}
@@ -227,7 +286,7 @@ function clearGame(now){running=false;finished=true;finishTime=(now-startTime)/1
   overlayTitle.textContent="🏆 MISSION CLEAR!";
   overlayText.textContent="기록 "+finishTime.toFixed(2)+"초";
   overlayBtn.textContent="다시하기";
-  gameOverlay.classList.remove("hidden");timerEl.textContent=finishTime.toFixed(2)+"초";const old=safeGetBest();if(!old||finishTime<Number(old)){safeSetBest(finishTime);bestTimeEl.textContent=finishTime.toFixed(2)+"초";messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>"+finishTime.toFixed(2)+"초 — 새로운 최고 기록!"}else{messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>기록: "+finishTime.toFixed(2)+"초"}}
+  gameOverlay.classList.remove("hidden");timerEl.textContent=finishTime.toFixed(2)+"초";saveLocalRanking(finishTime);const old=safeGetBest();if(!old||finishTime<Number(old)){safeSetBest(finishTime);bestTimeEl.textContent=finishTime.toFixed(2)+"초";messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>"+finishTime.toFixed(2)+"초 — 새로운 최고 기록!"}else{messageEl.innerHTML="🏆 <b>MISSION CLEAR!</b><br>기록: "+finishTime.toFixed(2)+"초"}}
 function update(now,dt){
  if(!running)return;
  let moveX=0,moveY=0;
@@ -286,6 +345,39 @@ function update(now,dt){
  }
 }
 function drawStar(x,y,r){ctx.save();ctx.translate(x,y);ctx.fillStyle="#ffdb4d";if(!IS_MOBILE){ctx.shadowBlur=18;ctx.shadowColor="#ffdb4d";}ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2===0?r:r*.45,px=Math.cos(a)*rr,py=Math.sin(a)*rr;i===0?ctx.moveTo(px,py):ctx.lineTo(px,py)}ctx.closePath();ctx.fill();ctx.restore()}
+
+function drawPlayerFace(){
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
+  ctx.clip();
+
+  if(playerFace.complete && playerFace.naturalWidth>0){
+    const sw=playerFace.naturalWidth;
+    const sh=playerFace.naturalHeight;
+    const side=Math.min(sw,sh);
+    const sx=(sw-side)/2;
+    const sy=(sh-side)/2;
+    ctx.drawImage(
+      playerFace,
+      sx,sy,side,side,
+      player.x-player.r,player.y-player.r,player.r*2,player.r*2
+    );
+  }else{
+    ctx.fillStyle="#555";
+    ctx.fillRect(player.x-player.r,player.y-player.r,player.r*2,player.r*2);
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle="#ffffff";
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function draw(){
  ctx.clearRect(0,0,W,H);ctx.fillStyle="#070b16";ctx.fillRect(0,0,W,H);
  ctx.fillStyle="rgba(255,255,255,.35)";for(let i=0;i<(IS_MOBILE?18:45);i++){const x=(i*157)%W,y=(i*89)%H;ctx.fillRect(x,y,1.5,1.5)}
@@ -315,32 +407,7 @@ function draw(){
  });
  const now=performance.now();
  if(now>=invincibleUntil||Math.floor(now/120)%2===0){
-   ctx.save();
-   ctx.beginPath();
-   ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
-   ctx.clip();
-
-   if(playerFace.complete && playerFace.naturalWidth){
-     // 사용자가 보내준 사진을 그대로 원형 캐릭터 안에 표시
-     ctx.drawImage(
-       playerFace,
-       0,0,playerFace.naturalWidth,playerFace.naturalHeight,
-       player.x-player.r,player.y-player.r,player.r*2,player.r*2
-     );
-   }else{
-     ctx.fillStyle="#6fe6a4";
-     ctx.fillRect(player.x-player.r,player.y-player.r,player.r*2,player.r*2);
-   }
-   ctx.restore();
-
-   // 캐릭터 테두리
-   ctx.save();
-   ctx.strokeStyle="#ffffff";
-   ctx.lineWidth=2;
-   ctx.beginPath();
-   ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
-   ctx.stroke();
-   ctx.restore();
+   drawPlayerFace();
  }
  if(!running){ctx.fillStyle="rgba(0,0,0,.48)";ctx.fillRect(0,0,W,H);ctx.fillStyle="#fff";ctx.textAlign="center";if(finished){ctx.font="bold 40px Arial";ctx.fillText(lives>0?"MISSION CLEAR!":"GAME OVER",W/2,H/2-18);ctx.font="19px Arial";ctx.fillText(lives>0?"기록 "+finishTime.toFixed(2)+"초":"다시 도전해보세요!",W/2,H/2+22)}else{ctx.font="bold 36px Arial";ctx.fillText("STAR ESCAPE",W/2,H/2-15);ctx.font="18px Arial";ctx.fillText("게임 시작 버튼을 눌러주세요.",W/2,H/2+25)}}
 }
@@ -367,7 +434,7 @@ function getCanvasLocal(clientX,clientY){
 }
 
 let joyBaseX=0,joyBaseY=0;
-const JOY_RADIUS=42;
+const JOY_RADIUS=27;
 
 /* 터치한 위치에 조이스틱을 생성한다. */
 function startFloatingJoystick(clientX,clientY,pointerId){
